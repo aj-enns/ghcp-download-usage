@@ -21,5 +21,11 @@
   "managedDependency": {
     "enabled": true
   },
-  "functionTimeout": "00:10:00"
+  "functionTimeout": "00:10:00",
+  "langaugeWorkers": {
+    "powershell": {
+      "defaultExecutablePath": "pwsh.exe",
+      "workerDirectoryPath": "workers/powershell"
+    }
+  }
 }
