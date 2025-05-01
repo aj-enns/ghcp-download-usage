@@ -19,7 +19,7 @@ $resourceGroupName = $env:RESOURCE_GROUP_NAME
 $githubApiUrl = "https://api.github.com/copilot/metrics/user_adoption" # GitHub Copilot API endpoint
 
 # Try to get GitHub token from environment variable first, then fallback to Automation Account variable
-$githubToken = $env:GITHUB_TOKEN
+$githubToken = $env:gh_pat
 if (-not $githubToken) {
     try {
         $githubToken = (Get-AzAutomationVariable -ResourceGroupName $resourceGroupName -AutomationAccountName $automationAccountName -Name "GitHubToken").Value
