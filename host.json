@@ -22,10 +22,11 @@
     "enabled": true
   },
   "functionTimeout": "00:10:00",
-  "langaugeWorkers": {
+  "languageWorkers": {
     "powershell": {
       "defaultExecutablePath": "pwsh.exe",
-      "workerDirectoryPath": "workers/powershell"
+      "workerDirectoryPath": "workers/powershell",
+      "runtimeVersion": "~7.4"
     }
   }
 }

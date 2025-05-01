@@ -6,10 +6,12 @@ param containerName string
 param storageAccountName string = '' // Empty default - will use generated name if not provided
 param createNewStorageAccount bool = true
 param functionAppName string = 'func-ghcp-usage' // Default name for function app
+param appInsightsName string = '' // Default is empty, will use function app name if not provided
 
 // Generate a unique storage account name if none provided
 var uniqueStorageName = 'ghcpdata${uniqueString(subscription().id, resourceGroupName)}'
 var finalStorageAccountName = empty(storageAccountName) ? uniqueStorageName : storageAccountName
+var finalAppInsightsName = empty(appInsightsName) ? 'ai-${functionAppName}' : appInsightsName
 
 module resourceGroupModule './create-resource-group.bicep' = {
   name: 'resourceGroupDeployment'
@@ -100,6 +102,42 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   }
 }
 
+// Log Analytics workspace for Application Insights
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+  name: 'log-${functionAppName}'
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+    features: {
+      enableLogAccessUsingOnlyResourcePermissions: true
+    }
+  }
+  tags: {
+    application: 'ghcp-download-usage'
+  }
+}
+
+// Add Application Insights
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: finalAppInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+    IngestionMode: 'LogAnalytics'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+  tags: {
+    application: 'ghcp-download-usage'
+    purpose: 'GitHub Copilot Usage Monitoring'
+  }
+}
+
 // Function App resource
 resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   name: functionAppName
@@ -115,7 +153,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
     serverFarmId: hostingPlan.id
     httpsOnly: true
     siteConfig: {
-      powerShellVersion: '7.2' // Using PowerShell 7.2 runtime
+      powerShellVersion: '7.4' // Updated to PowerShell 7.4 runtime
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -138,6 +176,10 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
           value: 'powershell'
         }
         {
+          name: 'FUNCTIONS_WORKER_RUNTIME_VERSION'
+          value: '~7.4'
+        }
+        {
           name: 'AUTOMATION_ACCOUNT_NAME'
           value: automationAccountName
         }
@@ -148,6 +190,18 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'CONTAINER_NAME'
           value: containerName
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsights.properties.InstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
         }
       ]
       ftpsState: 'Disabled'
@@ -169,3 +223,6 @@ output containerId string = (createNewStorageAccount ? container.id : containerE
 output containerName string = containerName
 output functionAppId string = functionApp.id
 output functionAppName string = functionApp.name
+output appInsightsId string = appInsights.id
+output appInsightsName string = appInsights.name
+output appInsightsInstrumentationKey string = appInsights.properties.InstrumentationKey
