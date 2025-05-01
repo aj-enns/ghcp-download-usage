@@ -5,4 +5,4 @@
 #$currentUTCtime = (Get-Date).ToUniversalTime()
 
 # Write an information log with the current time.
-Write-Host "GitHub Copilot Usage data download function started at: $currentUTCtime"
+Write-Host "GitHub Copilot Usage data download function started at"
