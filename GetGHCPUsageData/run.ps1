@@ -12,6 +12,38 @@ Import-Module Az.Accounts
 Import-Module Az.Storage
 Import-Module Az.Automation
 
+# Start with basic verbose logging to help diagnose issues
+Write-Host "Function starting - $(Get-Date)"
+$ErrorActionPreference = "Stop" # This ensures errors are captured properly
+
+try {
+    # First check if modules are available without importing
+    Write-Host "Checking for required modules..."
+    $modules = @('Az.Accounts', 'Az.Storage', 'Az.Automation')
+    foreach ($module in $modules) {
+        if (!(Get-Module -ListAvailable -Name $module)) {
+            Write-Host "Module $module not found, attempting to install..."
+            Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber
+        }
+    }
+
+    # Now import modules with logging
+    Write-Host "Importing modules..."
+    foreach ($module in $modules) {
+        Write-Host "Importing $module..."
+        Import-Module $module
+    }
+    
+    # Rest of your function code
+    # ...
+} 
+catch {
+    # Detailed error logging
+    Write-Host "ERROR: $($_.Exception.Message)"
+    Write-Host "Stack trace: $($_.ScriptStackTrace)"
+    throw
+}
+
 # Define variables by retrieving them from environment variables or Azure Automation Account
 $automationAccountName = $env:AUTOMATION_ACCOUNT_NAME
 $resourceGroupName = $env:RESOURCE_GROUP_NAME
