@@ -1,0 +1,34 @@
+# This workflow deploys the Azure Function to Azure on push to main
+name: Deploy Azure Function
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Azure CLI
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Azure Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+          package: .
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          # For PowerShell, ensure your function app is set up for PowerShell runtime
+
+# Notes:
+# - Store your Azure credentials as AZURE_CREDENTIALS secret (JSON from az ad sp create-for-rbac)
+# - Store your function app publish profile as AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret
+# - Store your function app name as AZURE_FUNCTIONAPP_NAME secret
+# - Adjust the package path if your function code is in a subfolder
+# - For more info: https://github.com/Azure/functions-action
