@@ -1,0 +1,84 @@
+name: Deploy Function App
+
+on:
+  push:
+    branches: [ function ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    env:
+      DOTNET_VERSION: '8.0.x'
+      AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release --no-build --output ./publish
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate unique token
+        id: token
+        run: |
+          echo "RESOURCE_TOKEN=$(openssl rand -hex 4)" >> $GITHUB_ENV
+          echo "LOCATION=${{ vars.AZURE_LOCATION || 'eastus' }}" >> $GITHUB_ENV
+          echo "ENVIRONMENT_NAME=${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP_NAME=rg-ghcp-download-usage-${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_ENV
+          
+      - name: Create Resource Group if not exists
+        run: |
+          if [ $(az group exists --name ${{ env.RESOURCE_GROUP_NAME }}) = false ]; then
+            az group create --name ${{ env.RESOURCE_GROUP_NAME }} --location ${{ env.LOCATION }}
+          fi
+
+      - name: Deploy Bicep template
+        id: bicep-deployment
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ env.RESOURCE_GROUP_NAME }}
+          template: ./infra/main.bicep
+          parameters: ./infra/main.parameters.json
+          deploymentName: gh-action-${{ github.run_id }}
+          failOnStdErr: false
+          additionalParameters: |
+            ENVIRONMENT_NAME=${{ env.ENVIRONMENT_NAME }}
+            RESOURCE_TOKEN=${{ env.RESOURCE_TOKEN }}
+            LOCATION=${{ env.LOCATION }}
+
+      - name: Deploy Function App
+        uses: azure/functions-action@v1
+        with:
+          app-name: ${{ steps.bicep-deployment.outputs.functionAppName }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/publish

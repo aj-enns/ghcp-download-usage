@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "functionAppName": {
+      "value": "ghcp-download-usage-dev"
+    },
+    "storageAccountName": {
+      "value": "ghcpdlus123456"
+    },
+    "appServicePlanName": {
+      "value": "ghcp-download-usage-plan-dev"
+    },
+    "location": {
+      "value": "canadacentral"
+    }
+  }
+}

@@ -105,6 +105,54 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
 ```
 Copy the JSON output and store it as the `AZURE_CREDENTIALS` secret in GitHub.
 
+## Deployment with GitHub Actions
+
+This project is configured to deploy to Azure using GitHub Actions with parameterized deployment for different environments (dev, test, prod).
+
+### Prerequisites
+
+Before you can use the GitHub Actions workflow, you need to:
+
+1. Create a service principal in Azure for GitHub Actions:
+
+```bash
+az ad sp create-for-rbac --name "ghcp-download-usage-github-actions" --role contributor \
+                         --scopes /subscriptions/{subscription-id} \
+                         --sdk-auth
+```
+
+2. Add the following secrets to your GitHub repository:
+   - `AZURE_CLIENT_ID`: The client ID of the service principal
+   - `AZURE_TENANT_ID`: The tenant ID of the service principal 
+   - `AZURE_SUBSCRIPTION_ID`: The Azure subscription ID
+
+3. (Optional) Add the following variable to your GitHub repository:
+   - `AZURE_LOCATION`: The Azure region to deploy to (defaults to 'eastus' if not specified)
+
+### Deployment Process
+
+The workflow can be triggered in two ways:
+
+1. **Automatically**: When code is pushed to the `main` branch
+2. **Manually**: Through the GitHub Actions UI using the workflow_dispatch event, where you can select the target environment
+
+### Infrastructure
+
+The deployment creates the following Azure resources:
+- Resource Group (if it doesn't exist)
+- Storage Account for the function
+- App Service Plan (Consumption Plan)
+- Function App
+
+## Local Development
+
+To run this project locally:
+
+1. Make sure you have the [Azure Functions Core Tools](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local) installed
+2. Clone the repository
+3. Create a `local.settings.json` file with your connection strings
+4. Run `func start` to start the function locally
+
 ## References
 - [Azure Functions PowerShell docs](https://learn.microsoft.com/azure/azure-functions/functions-reference-powershell)
 - [Azure Bicep documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview)
