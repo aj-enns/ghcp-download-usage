@@ -35,84 +35,86 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
 
 ## Setup Steps
 
-### 1. Deploy Azure Resources with Bicep
-Navigate to the project root and run:
+## Recommended Setup Order
+
+Follow these steps in order for a successful deployment:
+
+### 1. Create the Resource Group
+Create your Azure resource group (if it doesn't already exist):
 
 ```sh
-az deployment sub create \
-  --location <location> \
-  --template-file infra/deploy-resources.bicep \
-  --parameters <your-parameters-file>.json
+az group create --name <your-resource-group> --location <your-location>
 ```
 
-Or, for a resource group deployment:
+### 2. Create Azure Service Principal and Set GitHub Secrets/Variables
+- Create a service principal and get the credentials JSON:
 
 ```sh
-az deployment group create \
-  --resource-group <resource-group-name> \
-  --template-file infra/deploy-resources.bicep \
-  --parameters <your-parameters-file>.json
+az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --scopes /subscriptions/<subscription-id>/resourceGroups/<your-resource-group> --sdk-auth
 ```
+- Add the following to your GitHub repository (as secrets or variables as appropriate):
+  - `AZURE_CREDENTIALS` (secret): The JSON output from the command above
+  - `AZURE_RESOURCE_GROUP` (secret or variable): Your resource group name
+  - `AZURE_AUTOMATION_ACCOUNT` (secret or variable): Your Automation Account name
+  - `AZURE_LOCATION` (variable): Your Azure region (e.g., canadacentral)
+  - `AZURE_CONTAINER_NAME` (variable): Your blob container name
+  - `AZURE_STORAGE_ACCOUNT_NAME` (variable): Your storage account name (optional, only if you want to override the default)
 
-### 2. Create Azure Automation Account Variables
-Store secrets and configuration as Automation Account variables:
+### 3. Deploy Infrastructure Using GitHub Actions
+- Go to the **Actions** tab in your GitHub repository.
+- Select the **Deploy Azure Infrastructure** workflow.
+- Click **Run workflow** to deploy the Bicep template and provision all required Azure resources.
+
+### 4. Set Up Azure Automation Account Variables
+After the infrastructure is deployed, set up the required Automation Account variables for your runbook:
+
+**Tip:** You can deploy the infrastructure using the `.github/workflows/deploy-infra.yml` GitHub Actions workflow. Go to the **Actions** tab in your GitHub repository, select **Deploy Azure Infrastructure**, and click **Run workflow**. This will provision all required Azure resources automatically. Once the workflow completes, continue with the steps below to set up Automation Account variables.
 
 ```sh
 az automation variable create \
-  --resource-group <resource-group-name> \
-  --automation-account-name <automation-account-name> \
+  --resource-group <your-resource-group> \
+  --automation-account-name <your-automation-account> \
   --name GitHubToken \
   --value <your-github-token> --encrypted true
 
 az automation variable create \
-  --resource-group <resource-group-name> \
-  --automation-account-name <automation-account-name> \
+  --resource-group <your-resource-group> \
+  --automation-account-name <your-automation-account> \
   --name StorageAccountName \
   --value <your-storage-account-name>
 
 az automation variable create \
-  --resource-group <resource-group-name> \
-  --automation-account-name <automation-account-name> \
+  --resource-group <your-resource-group> \
+  --automation-account-name <your-automation-account> \
   --name StorageAccountKey \
   --value <your-storage-account-key> --encrypted true
 
 az automation variable create \
-  --resource-group <resource-group-name> \
-  --automation-account-name <automation-account-name> \
+  --resource-group <your-resource-group> \
+  --automation-account-name <your-automation-account> \
   --name ContainerName \
   --value <your-container-name>
 ```
 
-### How to Get the Azure Storage Account Key
-To retrieve the storage account key (required for uploading to Blob Storage), use the following Azure CLI command:
+### 5. Deploy the Runbook Script
+You can deploy the PowerShell script (`GetGHCPUsageData/run.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:
 
 ```sh
-az storage account keys list \
-  --resource-group <resource-group-name> \
-  --account-name <storage-account-name> 
-```
-
-This will output a JSON array of keys. Use the value of `key1` or `key2` as your `StorageAccountKey` when creating the Automation Account variable or setting your local environment variable.
-
-### 3. Import the Runbook Script
-You can import the PowerShell script (`GetGHCPUsageData/run.ps1`) into your Azure Automation Account either manually or using the Azure CLI:
-
-```sh
-az automation runbook import \
-  --automation-account-name <automation-account-name> \
-  --resource-group <resource-group-name> \
+az automation runbook create \
+  --automation-account-name <your-automation-account> \
+  --resource-group <your-resource-group> \
   --name "GetGHCPUsageData" \
   --type PowerShell \
-  --path ./GetGHCPUsageData/run.ps1 \
-  --force
+  --location <your-location>
+
+az automation runbook replace-content \
+  --automation-account-name <your-automation-account> \
+  --resource-group <your-resource-group> \
+  --name "GetGHCPUsageData" \
+  --content @./GetGHCPUsageData/run.ps1
 ```
 
-### 4. Set Up GitHub Actions (Optional)
-- Add the following secrets to your GitHub repository:
-  - `AZURE_CREDENTIALS`: Output from `az ad sp create-for-rbac ... --sdk-auth`
-  - `AZURE_AUTOMATION_ACCOUNT`: Your Azure Automation Account name
-  - `AZURE_RESOURCE_GROUP`: Resource group containing the Automation Account
-- The workflow in `.github/workflows/deploy-automation-runbook.yml` will deploy your runbook on push to the specified branch.
+Or use the `.github/workflows/deploy-automation-runbook.yml` workflow to automate this step.
 
 ## Setting up GitHub Actions Azure Credentials Secret
 
