@@ -119,4 +119,6 @@ catch {
         Write-Host "This could be because your token doesn't have the required permissions (read:org and read:copilot)."
         Write-Host "Make sure your token has these scopes: read:org, read:copilot"
     }
+
 }
+
