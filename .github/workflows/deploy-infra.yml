@@ -25,6 +25,9 @@ jobs:
           echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID"        # Prints the value
           echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV  # Exports for next steps
 
+      - name: Use Subscription ID
+        run: echo "The subscription ID is $SUBSCRIPTION_ID"
+
       - name: Deploy Bicep template
         env:
           AZURE_AUTOMATION_ACCOUNT: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}
