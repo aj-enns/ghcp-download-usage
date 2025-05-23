@@ -114,11 +114,41 @@ az automation runbook import \
   - `AZURE_RESOURCE_GROUP`: Resource group containing the Automation Account
 - The workflow in `.github/workflows/deploy-automation-runbook.yml` will deploy your runbook on push to the specified branch.
 
-#### Example command to create Azure credentials for GitHub Actions:
+## Setting up GitHub Actions Azure Credentials Secret
+
+To enable GitHub Actions to deploy resources to Azure, you need to create a service principal and add its credentials as a secret named `AZURE_CREDENTIALS` in your repository.
+
+### 1. Generate the credentials JSON
+Run this command in your terminal (replace the placeholders with your values):
+
 ```sh
 az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --scopes /subscriptions/<subscription-id>/resourceGroups/<resource-group-name> --sdk-auth
 ```
-Copy the JSON output and store it as the `AZURE_CREDENTIALS` secret in GitHub.
+
+### 2. The output will look like this:
+
+```json
+{
+  "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "clientSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "subscriptionId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
+  "resourceManagerEndpointUrl": "https://management.azure.com/",
+  "activeDirectoryGraphResourceId": "https://graph.windows.net/",
+  "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
+  "galleryEndpointUrl": "https://gallery.azure.com/",
+  "managementEndpointUrl": "https://management.core.windows.net/"
+}
+```
+
+### 3. Add this JSON as the value for the `AZURE_CREDENTIALS` secret in your GitHub repository
+- Go to your repository’s **Settings** > **Secrets and variables** > **Actions**.
+- Click **New repository secret**.
+- Name: `AZURE_CREDENTIALS`
+- Value: *(Paste the entire JSON output above)*
+
+This secret will be used by the `azure/login@v2` GitHub Action to authenticate your workflow.
 
 ## References
 - [Azure Automation PowerShell Runbooks](https://learn.microsoft.com/azure/automation/automation-runbook-types)
