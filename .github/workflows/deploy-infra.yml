@@ -1,4 +1,4 @@
-name: Deploy Azure Infrastructure
+name: Deploy Azure Automation Runbook solution
 
 on:
   workflow_dispatch:
