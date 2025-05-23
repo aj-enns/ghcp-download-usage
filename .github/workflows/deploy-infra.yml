@@ -22,6 +22,7 @@ jobs:
         id: get-sub
         run: |
           echo "SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)" >> $GITHUB_ENV
+          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID"
 
       - name: Deploy Bicep template
         env:
