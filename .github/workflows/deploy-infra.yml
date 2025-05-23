@@ -1,6 +1,7 @@
 name: Deploy Azure Infrastructure
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - updating-powershell
