@@ -33,7 +33,7 @@ jobs:
           AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
         run: |
-          az account set --subscription "$SUBSCRIPTION_ID"
+          az account set --subscription $SUBSCRIPTION_ID
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --template-file infra/deploy-resources.bicep \
