@@ -150,6 +150,41 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
 
 This secret will be used by the `azure/login@v2` GitHub Action to authenticate your workflow.
 
+## Deploying Infrastructure from GitHub Actions
+
+You can deploy the Azure infrastructure (Automation Account, Storage, etc.) using the provided GitHub Actions workflow: `.github/workflows/deploy-infra.yml`.
+
+### Steps to Deploy
+
+1. **Ensure required secrets are set in your GitHub repository:**
+   - `AZURE_CREDENTIALS`: Output from `az ad sp create-for-rbac ... --sdk-auth`
+   - `AZURE_AUTOMATION_ACCOUNT`: Your Azure Automation Account name
+   - `AZURE_RESOURCE_GROUP`: Resource group containing the Automation Account
+   - (Optional) If you want to keep your container name private, add it as a secret and update the workflow accordingly.
+
+2. **Trigger the workflow manually:**
+   - Go to the **Actions** tab in your GitHub repository.
+   - Select the **Deploy Azure Infrastructure** workflow.
+   - Click the **Run workflow** button and confirm.
+
+3. **What the workflow does:**
+   - Checks out your code.
+   - Logs in to Azure using the credentials from `AZURE_CREDENTIALS`.
+   - Extracts the subscription ID from the credentials.
+   - Runs the Bicep deployment using the parameters:
+     - `location=canadacentral`
+     - `automationAccountName` (from secret)
+     - `resourceGroupName` (from secret)
+     - `containerName` (set in the workflow or as a secret)
+
+4. **Monitor the deployment:**
+   - The workflow logs will show the progress and results of the deployment.
+   - Any errors or issues will be displayed in the Actions run output.
+
+**Note:**
+- You can also run the Bicep deployment locally using the Azure CLI if needed (see earlier instructions in this README).
+- The workflow only runs when triggered manually (not on push).
+
 ## References
 - [Azure Automation PowerShell Runbooks](https://learn.microsoft.com/azure/automation/automation-runbook-types)
 - [Azure Bicep documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview)
