@@ -1,7 +1,7 @@
 # ghcp-download-usage
 
 ## Overview
-This project provides an Azure Function (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments.
+This project provides an Azure Automation Runbook (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments.
 
 ## What It Does
 - Calls the GitHub Copilot API to retrieve user adoption metrics.
@@ -13,7 +13,7 @@ This project provides an Azure Function (PowerShell) that downloads GitHub Copil
 ## Prerequisites
 - Azure Subscription
 - Azure CLI installed
-- Sufficient permissions to create resource groups, storage accounts, automation accounts, and function apps
+- Sufficient permissions to create resource groups, storage accounts, and automation accounts
 - GitHub Personal Access Token with required API access
 
 ## Creating a GitHub Personal Access Token (PAT)
@@ -29,7 +29,7 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
    - Any additional scopes required by the Copilot metrics API (check [GitHub Copilot API documentation](https://docs.github.com/en/copilot) for updates)
 5. Click **Generate token** and copy the token value. You will not be able to see it again!
 6. Store this token securely:
-   - As the value for the `GitHubToken` variable in your Azure Automation Account (see step 2 above).
+   - As the value for the `GitHubToken` variable in your Azure Automation Account (see step 2 below).
 
 **Never commit your PAT to source control.**
 
@@ -75,6 +75,12 @@ az automation variable create \
   --automation-account-name <automation-account-name> \
   --name StorageAccountKey \
   --value <your-storage-account-key> --encrypted true
+
+az automation variable create \
+  --resource-group <resource-group-name> \
+  --automation-account-name <automation-account-name> \
+  --name ContainerName \
+  --value <your-container-name>
 ```
 
 ### How to Get the Azure Storage Account Key
@@ -88,16 +94,25 @@ az storage account keys list \
 
 This will output a JSON array of keys. Use the value of `key1` or `key2` as your `StorageAccountKey` when creating the Automation Account variable or setting your local environment variable.
 
-### 3. Configure the Azure Function
-- Update `GetGHCPdata.ps1` with your Automation Account and Resource Group names.
-- Ensure the container name in the script matches your Blob Storage container.
+### 3. Import the Runbook Script
+You can import the PowerShell script (`GetGHCPUsageData/run.ps1`) into your Azure Automation Account either manually or using the Azure CLI:
+
+```sh
+az automation runbook import \
+  --automation-account-name <automation-account-name> \
+  --resource-group <resource-group-name> \
+  --name "GetGHCPUsageData" \
+  --type PowerShell \
+  --path ./GetGHCPUsageData/run.ps1 \
+  --force
+```
 
 ### 4. Set Up GitHub Actions (Optional)
 - Add the following secrets to your GitHub repository:
   - `AZURE_CREDENTIALS`: Output from `az ad sp create-for-rbac ... --sdk-auth`
-  - `AZURE_FUNCTIONAPP_NAME`: Your Azure Function App name
-  - `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`: Publish profile for your Function App
-- The workflow in `.github/workflows/deploy-azure-function.yml` will deploy your function on push to main.
+  - `AZURE_AUTOMATION_ACCOUNT`: Your Azure Automation Account name
+  - `AZURE_RESOURCE_GROUP`: Resource group containing the Automation Account
+- The workflow in `.github/workflows/deploy-automation-runbook.yml` will deploy your runbook on push to the specified branch.
 
 #### Example command to create Azure credentials for GitHub Actions:
 ```sh
@@ -106,9 +121,9 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
 Copy the JSON output and store it as the `AZURE_CREDENTIALS` secret in GitHub.
 
 ## References
-- [Azure Functions PowerShell docs](https://learn.microsoft.com/azure/azure-functions/functions-reference-powershell)
+- [Azure Automation PowerShell Runbooks](https://learn.microsoft.com/azure/automation/automation-runbook-types)
 - [Azure Bicep documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview)
-- [GitHub Actions for Azure](https://github.com/Azure/functions-action)
+- [GitHub Actions for Azure](https://github.com/Azure/actions)
 
 ## Security & Best Practices
 - Never hardcode secrets; always use Azure Key Vault or Automation Account variables.

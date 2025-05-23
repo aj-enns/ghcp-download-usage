@@ -2,11 +2,13 @@
 __pycache__/
 *.pyc
 
+# Exclude Azurite and other local/emulator files
+_* 
+
 # Ignore node modules
 node_modules/
 
 # Ignore VSCode settings
-.vscode/
 
 # Ignore OS files
 .DS_Store
