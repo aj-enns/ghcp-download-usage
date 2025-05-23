@@ -1,0 +1,47 @@
+# This workflow deploys the PowerShell script as an Azure Automation Runbook on push to updating-powershell
+name: Deploy Azure Automation Runbook
+
+on:
+  push:
+    branches:
+      - updating-powershell
+
+jobs:
+  deploy-runbook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" ]; then echo "AZURE_AUTOMATION_ACCOUNT is not set"; exit 1; fi
+          if [ -z "${{ secrets.AZURE_RESOURCE_GROUP }}" ]; then echo "AZURE_RESOURCE_GROUP is not set"; exit 1; fi
+          echo "Automation Account: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}"
+          echo "Resource Group: ${{ secrets.AZURE_RESOURCE_GROUP }}"
+
+      - name: Create or Update Runbook
+        run: |
+          az extension add --name automation
+          az automation runbook create \
+            --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name "GetGHCPUsageData" \
+            --type PowerShell \
+            --location canadacentral \
+            --output none || true
+          az automation runbook replace-content \
+            --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name "GetGHCPUsageData" \
+            --content @./GetGHCPUsageData/run.ps1
+
+# Required secrets:
+# - AZURE_CREDENTIALS: Azure service principal credentials (JSON)
+# - AZURE_AUTOMATION_ACCOUNT: Name of your Azure Automation Account
+# - AZURE_RESOURCE_GROUP: Resource group containing the Automation Account
