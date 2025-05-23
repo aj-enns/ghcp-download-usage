@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - updating-powershell
+      - main
 
 jobs:
   deploy-infra:
@@ -21,8 +21,9 @@ jobs:
       - name: Extract Subscription ID
         id: get-sub
         run: |
-          echo "SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)" 
-          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID"
+          SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)
+          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID"        # Prints the value
+          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV  # Exports for next steps
 
       - name: Deploy Bicep template
         env:
