@@ -21,23 +21,23 @@ jobs:
       - name: Check required secrets
         run: |
           if [ -z "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" ]; then echo "AZURE_AUTOMATION_ACCOUNT is not set"; exit 1; fi
-          if [ -z "${{ secrets.AZURE_RESOURCE_GROUP }}" ]; then echo "AZURE_RESOURCE_GROUP is not set"; exit 1; fi
+          if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then echo "AZURE_RESOURCE_GROUP is not set"; exit 1; fi
           echo "Automation Account: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}"
-          echo "Resource Group: ${{ secrets.AZURE_RESOURCE_GROUP }}"
+          echo "Resource Group: ${{ vars.AZURE_RESOURCE_GROUP }}"
 
       - name: Create or Update Runbook
         run: |
           az extension add --name automation
           az automation runbook create \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --name "GetGHCPUsageData" \
             --type PowerShell \
             --location canadacentral \
             --output none || true
           az automation runbook replace-content \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --name "GetGHCPUsageData" \
             --content @./GetGHCPUsageData/run.ps1
 
