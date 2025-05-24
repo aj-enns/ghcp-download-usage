@@ -35,9 +35,8 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
 
 **Never commit your PAT to source control.**
 
-## Setup Steps
 
-## Recommended Setup Order
+# Recommended Setup Order
 
 Follow these steps in order for a successful deployment:
 
