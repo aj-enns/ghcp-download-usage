@@ -30,6 +30,7 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
 5. Click **Generate token** and copy the token value. You will not be able to see it again!
 6. Store this token securely:
    - As the value for the `GitHubToken` variable in your Azure Automation Account (see step 2 below).
+   - **Add it as a secret named `REPO_PAT` in your GitHub repository** (Settings > Secrets and variables > Actions > New repository secret).
 
 **Never commit your PAT to source control.**
 
@@ -59,6 +60,13 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
   - `AZURE_LOCATION` (variable): Your Azure region (e.g., canadacentral)
   - `AZURE_CONTAINER_NAME` (variable): Your blob container name
   - `AZURE_STORAGE_ACCOUNT_NAME` (variable): Your storage account name (optional, only if you want to override the default)
+
+- **Assign the Contributor role to your service principal at the subscription level:**
+
+  ```sh
+  az role assignment create --assignee <client_id> --role Contributor --scope /subscriptions/<subscription-id>
+  ```
+  Replace `<client_id>` with your service principal's clientId and `<subscription-id>` with your Azure subscription ID. This is required for deployments that create resource groups or use subscription-scoped modules in Bicep.
 
 ### 3. Deploy Infrastructure Using GitHub Actions
 - Go to the **Actions** tab in your GitHub repository.

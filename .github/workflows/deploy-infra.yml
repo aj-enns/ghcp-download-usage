@@ -46,3 +46,42 @@ jobs:
                 resourceGroupName="$AZURE_RESOURCE_GROUP" \
                 containerName="$AZURE_CONTAINER_NAME" \
                 storageAccountName="$AZURE_STORAGE_ACCOUNT_NAME"
+
+      - name: Get Storage Account Key
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+        run: |
+          ACCOUNT_KEY=$(az storage account keys list --account-name "$AZURE_STORAGE_ACCOUNT_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query '[0].value' -o tsv)
+          echo "AZURE_STORAGE_ACCOUNT_KEY=$ACCOUNT_KEY" >> $GITHUB_ENV
+
+      - name: Create Automation Account Variables
+        env:
+          AZURE_AUTOMATION_ACCOUNT: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          GITHUB_PAT: ${{ secrets.REPO_PAT }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
+          STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
+        run: |
+          az extension add --name automation
+          az automation variable create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
+            --name GitHubToken \
+            --value "$GITHUB_sub" --encrypted true
+          az automation variable create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
+            --name StorageAccountName \
+            --value "$AZURE_STORAGE_ACCOUNT_NAME"
+          az automation variable create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
+            --name StorageAccountKey \
+            --value "$STORAGE_ACCOUNT_KEY" --encrypted true
+          az automation variable create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
+            --name ContainerName \
+            --value "$AZURE_CONTAINER_NAME"
