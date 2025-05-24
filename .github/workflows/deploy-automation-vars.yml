@@ -56,25 +56,9 @@ jobs:
             Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
             Write-Host "Container Name: $env:AZURE_CONTAINER_NAME"
             
-            # Explicitly connect to Azure using the managed service identity
-            try {
-                Write-Host "Connecting to Azure..."
-                Connect-AzAccount -Identity
-                Write-Host "Successfully connected to Azure"
-                
-                # Get and show current context
-                $context = Get-AzContext
-                Write-Host "Current Azure Context: $($context.Name)"
-                Write-Host "Subscription: $($context.Subscription.Name)"
-                Write-Host "Account: $($context.Account.Id)"
-            }
-            catch {
-                Write-Error "Failed to connect to Azure: $_"
-                throw $_
-            }
-              # Use $env: prefix to access environment variables in PowerShell
-            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
-            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted:$false
-            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountKey" -Value $env:AZURE_STORAGE_ACCOUNT_KEY -Encrypted $true
-            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "ContainerName" -Value $env:AZURE_CONTAINER_NAME -Encrypted:$false
+            # Use $env: prefix to access environment variables in PowerShell
+            New-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
+            New-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted $false
+            New-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountKey" -Value $env:AZURE_STORAGE_ACCOUNT_KEY -Encrypted $true
+            New-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "ContainerName" -Value $env:AZURE_CONTAINER_NAME -Encrypted $false
           failOnStandardError: true
