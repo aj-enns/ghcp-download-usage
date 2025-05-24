@@ -41,7 +41,7 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
-          AZURE_SUBSCRIPTION_ID: ${{ env.SUBSCRIPTION_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
         uses: azure/powershell@v1
         with:
           azPSVersion: 'latest'
@@ -50,12 +50,16 @@ jobs:
             Install-Module -Name Az.Automation -Force -Scope CurrentUser
             Import-Module Az.Accounts
             Import-Module Az.Automation
-            
-            # Debug information to help diagnose issues
+              # Debug information to help diagnose issues
             Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
             Write-Host "Automation Account: $env:AZURE_AUTOMATION_ACCOUNT"
             Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
             Write-Host "Container Name: $env:AZURE_CONTAINER_NAME"
+            Write-Host "Storage Account Key: $(if ($env:AZURE_STORAGE_ACCOUNT_KEY) { "Key is present" } else { "Key is MISSING" })"
+            
+            # Show available cmdlets to check for Az.Automation
+            Write-Host "Checking for Az.Automation cmdlets..."
+            Get-Command -Module Az.Automation -Name "*AzAutomation*Variable*" | Format-Table -Property Name
             
             # Explicitly connect to Azure using service principal
             try {
@@ -72,11 +76,12 @@ jobs:
                 Write-Error "Failed to connect to Azure: $_"
                 throw $_
             }
-            
-            # Use $env: prefix to access environment variables in PowerShell
+              # Use $env: prefix to access environment variables in PowerShell
             try {
                 Write-Host "Creating Automation Variable: GitHubToken"
-                New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true                Write-Host "Creating Automation Variable: StorageAccountName"
+                New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
+                
+                Write-Host "Creating Automation Variable: StorageAccountName"
                 New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted $false
                 
                 Write-Host "Creating Automation Variable: StorageAccountKey"
