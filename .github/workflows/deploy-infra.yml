@@ -65,7 +65,7 @@ jobs:
           STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
           az extension add --name automation
-          az automation variable create \
+          az automation variable set \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
             --name GitHubToken \
