@@ -36,16 +36,11 @@ try {
     Write-Host "Calling GitHub Copilot Metrics API..."
     $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get
     
+    # Define the blob name with new naming convention
+    $blobName = "ghcp_metrics_usage_$yesterday.json"
     
-    # Define the output file path with new naming convention
-    $BlobName = "ghcp_metrics_usage_$yesterday.json"
-    
-    # Write the usage data to a local JSON file
+    # Convert the response to JSON
     $jsonContent = $response | ConvertTo-Json -Depth 10
-    $tempFile = Join-Path $env:TEMP $BlobName
-    $jsonContent | Set-Content -Path $tempFile -Encoding UTF8
-    
-    Write-Host "Success! Copilot billing usage data for $yesterday has been written to $localOutputFile"
     
     # Display summary information
     Write-Host "`nSummary for $yesterday"
@@ -54,8 +49,9 @@ try {
     
     # Upload to Azure Storage if storage account is provided
     if ($StorageAccountName) {
-        Write-Host "`nUploading metrics to Azure Storage..."
-          # Import Azure Storage module if not already loaded
+        Write-Host "`nUploading metrics directly to Azure Storage..."
+        
+        # Import required Azure modules
         if (-not (Get-Module -Name Az.Storage -ListAvailable)) {
             Write-Host "Az.Storage module not found. Installing..."
             Install-Module -Name Az.Storage -Scope CurrentUser -Force
@@ -66,15 +62,15 @@ try {
             Install-Module -Name Az.Accounts -Scope CurrentUser -Force
         }
         
-        Import-Module Az.Accounts
-        Import-Module Az.Storage
+        # Import-Module Az.Accounts
+        # Import-Module Az.Storage
         
         try {
             # Connect using the Automation Account's managed identity
             Write-Host "Connecting with Managed Identity..."
             Connect-AzAccount -Identity
             
-            # Get storage context using the DefaultAzureCredential
+            # Get storage context using the managed identity
             Write-Host "Getting storage context using Managed Identity..."
             $context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 
@@ -84,26 +80,36 @@ try {
                 Write-Host "Container '$ContainerName' does not exist. Creating..."
                 New-AzStorageContainer -Name $ContainerName -Context $context -Permission Off | Out-Null
             }
-              # Upload the JSON content directly to blob storage
-            Write-Host "Uploading $BlobName to $ContainerName container using Managed Identity..."
             
-            $blobProperties = @{
-                File = $tempFile
-                Container = $ContainerName
-                Blob = $BlobName
-                Context = $context
-                StandardBlobTier = "Hot" # Set tier explicitly
-                Metadata = @{
-                    "UploadDate" = [DateTime]::UtcNow.ToString("o")
-                    "Source" = "GHCopilotMetrics"
-                    "Organization" = $org
-                }
+            # Upload the JSON content directly to blob storage without using a temp file
+            Write-Host "Uploading $blobName to $ContainerName container using Managed Identity..."
+            
+            # Create blob metadata
+            $metadata = @{
+                "UploadDate" = [DateTime]::UtcNow.ToString("o")
+                "Source" = "GHCopilotMetrics"
+                "Organization" = $org
             }
-            Set-AzStorageBlobContent @blobProperties -Force | Out-Null
+            
+            # Convert JSON content to bytes
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonContent)
+            $stream = [System.IO.MemoryStream]::new($bytes)
+            
+            # Upload directly from memory stream
+            $blob = Set-AzStorageBlobContent -Container $ContainerName `
+                                           -Context $context `
+                                           -Blob $blobName `
+                                           -Stream $stream `
+                                           -Properties @{ContentType = "application/json"} `
+                                           -Metadata $metadata `
+                                           -StandardBlobTier "Hot" `
+                                           -Force
 
+            # Close the stream
+            $stream.Close()
             
             # Display the blob URL
-            $blobUrl = "$($context.BlobEndPoint)$ContainerName/$localOutputFile"
+            $blobUrl = "$($context.BlobEndPoint)$ContainerName/$blobName"
             Write-Host "Upload successful! Blob URL: $blobUrl"
         }
         catch {
