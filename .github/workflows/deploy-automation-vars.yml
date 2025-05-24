@@ -16,13 +16,11 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Extract Subscription ID
+          creds: ${{ secrets.AZURE_CREDENTIALS }}      - name: Extract Subscription ID
         id: get-sub
         run: |
           SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)
-          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+          echo "AZURE_SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
 
       - name: Get Storage Account Key
         env:
@@ -39,21 +37,42 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+          AZURE_SUBSCRIPTION_ID: ${{ env.SUBSCRIPTION_ID }}
         uses: azure/powershell@v1
         with:
           azPSVersion: 'latest'
           inlineScript: |
+            # Install and import required modules
             Install-Module -Name Az.Accounts -Force -Scope CurrentUser
             Install-Module -Name Az.Automation -Force -Scope CurrentUser
             Import-Module Az.Accounts
-            Import-Module Az.Automation            # Debug information to help diagnose issues
+            Import-Module Az.Automation
+            
+            # Debug information to help diagnose issues
             Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
             Write-Host "Automation Account: $env:AZURE_AUTOMATION_ACCOUNT"
             Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
             Write-Host "Container Name: $env:AZURE_CONTAINER_NAME"
+            
+            # Explicitly connect to Azure using the managed service identity
+            try {
+                Write-Host "Connecting to Azure..."
+                Connect-AzAccount -Identity
+                Write-Host "Successfully connected to Azure"
+                
+                # Get and show current context
+                $context = Get-AzContext
+                Write-Host "Current Azure Context: $($context.Name)"
+                Write-Host "Subscription: $($context.Subscription.Name)"
+                Write-Host "Account: $($context.Account.Id)"
+            }
+            catch {
+                Write-Error "Failed to connect to Azure: $_"
+                throw $_
+            }
               # Use $env: prefix to access environment variables in PowerShell
-            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
-            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted:$false
-            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountKey" -Value $env:AZURE_STORAGE_ACCOUNT_KEY -Encrypted $true
-            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "ContainerName" -Value $env:AZURE_CONTAINER_NAME -Encrypted:$false
+            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
+            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted:$false
+            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountKey" -Value $env:AZURE_STORAGE_ACCOUNT_KEY -Encrypted $true
+            Set-AzAutomationVariable -ResourceGroupName "$env:AZURE_RESOURCE_GROUP" -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "ContainerName" -Value $env:AZURE_CONTAINER_NAME -Encrypted:$false
           failOnStandardError: true
