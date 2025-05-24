@@ -1,7 +1,7 @@
-# ghcp-download-usage
+# GitHub Copilot Download Usage
 
 ## Overview
-This project provides an Azure Automation Runbook (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments. The solution uses Azure Managed Identity for secure, key-less authentication to Azure Storage.
+By default the GitHub API only retains data for 30 days.  If an organization wants to retain the usage data for longer they need to manually download the data. This project provides an Azure Automation Runbook (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments. The solution uses Azure Managed Identity for secure, key-less authentication to Azure Storage.
 
 ## What It Does
 - Calls the GitHub Copilot API to retrieve user adoption metrics.
@@ -27,10 +27,11 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
 4. Under **Scopes/permissions**, select:
    - `read:org` (to read organization membership)
    - `read:user` (to read user profile)
+   - `copilot` (to access Copilot metrics)
    - Any additional scopes required by the Copilot metrics API (check [GitHub Copilot API documentation](https://docs.github.com/en/copilot) for updates)
 5. Click **Generate token** and copy the token value. You will not be able to see it again!
 6. Store this token securely:
-   - As the value for the `GitHubToken` variable in your Azure Automation Account (see step 2 below).
+   - As the value for the `authToken` variable in your Azure Automation Account (through the automated workflow).
    - **Add it as a secret named `REPO_PAT` in your GitHub repository** (Settings > Secrets and variables > Actions > New repository secret).
 
 **Never commit your PAT to source control.**
@@ -42,7 +43,7 @@ To call the GitHub Copilot API, you need a GitHub Personal Access Token (PAT) wi
 Follow these steps in order for a successful deployment:
 
 ### 1. Create the Resource Group
-Create your Azure resource group (if it doesn't already exist):
+- Create your Azure resource group (if it doesn't already exist):
 
 ```sh
 az group create --name <your-resource-group> --location <your-location>
@@ -62,12 +63,12 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
   - `AZURE_CONTAINER_NAME` (variable): Your blob container name
   - `AZURE_STORAGE_ACCOUNT_NAME` (variable): Your storage account name (optional, only if you want to override the default)
 
-- **Assign the necessary roles to your service principal:**
+**Assign the necessary roles to your service principal:**
 
+  _Please pick from one of the two following options:_
   ```sh
   # Required for deploying resources at subscription level
   az role assignment create --assignee <client_id> --role Contributor --scope /subscriptions/<subscription-id>
-  
   # Required for creating role assignments in the GitHub Actions workflow
   az role assignment create --assignee <client_id> --role "User Access Administrator" --scope /subscriptions/<subscription-id>/resourceGroups/<your-resource-group>
   ```
@@ -75,56 +76,34 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
   
   Note: If you prefer not to grant "User Access Administrator" role to your service principal, you can manually assign the "Storage Blob Data Contributor" role to the Automation Account's managed identity after deployment.
 
-  Next assign the "User Access Administrator" role to the service principal for the resource group where the Automation Account will be created. This is necessary for the GitHub Actions workflow to create role assignments.
-```sh
-az role assignment create --assignee <client_id> --role "User Access Administrator" --scope /subscriptions/<subscription-id>/resourceGroups/rg-ghcp-usage
-```
-
 ### 3. Deploy Infrastructure Using GitHub Actions
 - Go to the **Actions** tab in your GitHub repository.
-- Select the **Deploy Azure Infrastructure** workflow.
+- Select the **Deploy Runbook Infra** workflow.
 - Click **Run workflow** to deploy the Bicep template and provision all required Azure resources.
 
 ### 4. Set Up Azure Automation Account Variables
 After the infrastructure is deployed, you can set up the required Automation Account variables for your runbook in two ways:
 
-#### Option 1: Using the deploy-automation-vars.yml GitHub Actions Workflow (Recommended)
-This automated workflow sets up all necessary variables in your Automation Account:
+####  Using the deploy-automation-vars.yml GitHub Actions Workflow (Recommended)
+
+This automated workflow sets up all necessary variables in your Automation Account and configures the role assignment:
 
 1. Go to the **Actions** tab in your GitHub repository.
 2. Select the **Deploy Runbook Vars** workflow.
 3. Click **Run workflow** to create all required variables in your Automation Account.
 
 The workflow automatically:
+
 - Creates the following variables in your Automation Account:
   - `authToken`: Your GitHub Personal Access Token (from `REPO_PAT` secret)
   - `StorageAccountName`: Your storage account name
   - `ContainerName`: Your blob container name
+- Retrieves the Automation Account's managed identity principal ID
+- Assigns the "Storage Blob Data Contributor" role to this managed identity on the storage account
   
-Note: This project uses Azure managed identity for secure, key-less authentication to Azure Storage.
+Note: This project uses Azure managed identity for secure, key-less authentication to Azure Storage. No storage keys are stored in the Automation Account, enhancing security by avoiding shared secrets.
 
-#### Option 2: Manual Setup Using Azure CLI
-If you prefer to set up the variables manually:
 
-```sh
-az automation variable create \
-  --resource-group <your-resource-group> \
-  --automation-account-name <your-automation-account> \
-  --name authToken \
-  --value <your-github-token> --encrypted true
-
-az automation variable create \
-  --resource-group <your-resource-group> \
-  --automation-account-name <your-automation-account> \
-  --name StorageAccountName \
-  --value <your-storage-account-name>
-
-az automation variable create \
-  --resource-group <your-resource-group> \
-  --automation-account-name <your-automation-account> \
-  --name ContainerName \
-  --value <your-container-name>
-```
 
 Note: Storage account key is not needed as the runbook uses the Automation Account's managed identity to access the storage account.
 
@@ -132,13 +111,15 @@ Note: Storage account key is not needed as the runbook uses the Automation Accou
 
 This solution uses Azure Managed Identity to securely access the storage account without keys. The role assignments are managed in two possible ways:
 
-1. **Via GitHub Actions Workflow (Recommended)**: The `deploy-automation-vars.yml` workflow assigns the "Storage Blob Data Contributor" role to the Automation Account's managed identity.
-   
-2. **Manually**: If your service principal doesn't have "User Access Administrator" rights, assign the role manually:
+1. **Via GitHub Actions Workflow (Recommended)**: The `deploy-automation-vars.yml` workflow automatically assigns the "Storage Blob Data Contributor" role to the Automation Account's managed identity. This approach handles the role assignment after deployment, making it suitable even when the service principal lacks elevated permissions during Bicep deployment.
+
+2. **Manually**: If your service principal doesn't have "User Access Administrator" rights, you can assign the role manually after deployment:
+
    ```sh
    az role assignment create --assignee <automation-account-principal-id> --role "Storage Blob Data Contributor" --scope /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<storage-account>
    ```
-   You can get the `automation-account-principal-id` from the Azure Portal or from the output of the Bicep deployment.
+
+   You can get the `automation-account-principal-id` from the Azure Portal or from the output of the Bicep deployment by checking the `automationAccountPrincipalId` output value.
 
 ### 5. Deploy the Runbook Script
 You can deploy the PowerShell script (`GetGHCPUsageData/GetEnterpriseUsage.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:
@@ -159,6 +140,76 @@ az automation runbook replace-content \
 ```
 
 Or use the `.github/workflows/deploy-automation-runbook.yml` workflow to automate this step.
+
+### 6. Schedule the Runbook
+
+To run the runbook on a regular schedule:
+
+1. **In the Azure Portal:**
+   - Navigate to your Automation Account
+   - Select the runbook named "GetGHCPUsageData"
+   - Click on "Schedules" in the left menu
+   - Click "Add a schedule"
+   - Choose between linking to an existing schedule or creating a new one
+   - For daily execution, create a schedule that runs once per day (recommended time: early morning)
+
+2. **Using Azure CLI:**
+
+   ```sh
+   # First, create a schedule
+   az automation schedule create \
+     --name "DailyGHCopilotMetrics" \
+     --automation-account-name <your-automation-account> \
+     --resource-group <your-resource-group> \
+     --frequency "Day" \
+     --interval 1 \
+     --start-time "$(date -d 'tomorrow 01:00' --iso-8601=seconds)" \
+     --timezone "UTC"
+   
+   # Then, link the schedule to your runbook
+   az automation job-schedule create \
+     --automation-account-name <your-automation-account> \
+     --resource-group <your-resource-group> \
+     --runbook-name "GetGHCPUsageData" \
+     --schedule-name "DailyGHCopilotMetrics"
+   ```
+
+### 7. Testing and Validation
+
+After deployment, it's important to verify that the managed identity and role assignments are working correctly:
+
+1. **Test the Runbook Manually:**
+   - In the Azure Portal, navigate to your Automation Account
+   - Select the "GetGHCPUsageData" runbook
+   - Click "Start" to run it manually
+   - Monitor the job output for successful execution
+
+2. **Verify Managed Identity Access:**
+   - Check that the runbook successfully connects to Azure Storage using managed identity
+   - Look for messages like "Connecting with Managed Identity..." in the job output
+   - If you see errors about unauthorized access, verify that the role assignment was created correctly
+
+3. **Check Role Assignments:**
+   - In the Azure Portal, navigate to your storage account
+   - Click on "Access control (IAM)" in the left menu
+   - Select the "Role assignments" tab
+   - Verify that your Automation Account's managed identity has the "Storage Blob Data Contributor" role
+   - The Principal Name should match your Automation Account name
+
+4. **Monitor Blob Creation:**
+   - After a successful run, navigate to your storage account in the portal
+   - Go to the "Containers" section and open your container
+   - Verify that a new blob with GitHub Copilot metrics has been created with a name pattern like `ghcp_metrics_usage_YYYY-MM-DD.json`
+   - Check the blob metadata to confirm it contains the expected fields
+
+5. **Troubleshooting Role Assignment Issues:**
+   - If the workflow or manual assignment process fails to create the role assignment, ensure your service principal has "User Access Administrator" permissions
+   - Check the GitHub Actions workflow logs for detailed error messages
+   - As a last resort, you can manually create the role assignment in the Azure Portal by:
+     - Going to your storage account → Access control (IAM) → Add role assignment
+     - Selecting "Storage Blob Data Contributor" role
+     - Under "Assign access to", choosing "Managed identity" 
+     - Selecting your Automation Account from the list
 
 ## Setting up GitHub Actions Azure Credentials Secret
 
@@ -255,12 +306,11 @@ This workflow automates the creation of required variables in your Azure Automat
 
 2. **What the workflow does:**
    - Logs in to Azure using the service principal credentials.
-   - Retrieves the storage account key from your storage account.
    - Creates the following variables in your Azure Automation Account:
      - `authToken`: Your GitHub PAT for accessing the Copilot API
      - `StorageAccountName`: Name of your Azure Storage account
-     - `StorageAccountKey`: Access key for your storage account (encrypted)
      - `ContainerName`: Name of your blob container
+   - Assigns the "Storage Blob Data Contributor" role to the Automation Account's managed identity (if the service principal has User Access Administrator rights)
 
 3. **Monitor the deployment:**
    - The workflow logs will show the progress and results.
@@ -280,8 +330,80 @@ This workflow deploys the PowerShell runbook script to your Azure Automation Acc
 - [GitHub Actions for Azure](https://github.com/Azure/actions)
 
 ## Security & Best Practices
-- Never hardcode secrets; always use Azure Key Vault or Automation Account variables.
-- Use managed identities where possible (this solution uses managed identity for Azure Storage access).
-- Avoid using storage account keys; prefer managed identities or SAS tokens with appropriate permissions.
-- Follow the principle of least privilege for all Azure resources and Service Principals.
-- Validate deployments with `az deployment what-if` or `azd provision --preview` before applying changes.
+
+- Never hardcode secrets; always use Azure Key Vault or Automation Account variables
+- Use managed identities where possible (this solution uses managed identity for Azure Storage access)
+- Avoid using storage account keys; prefer managed identities or SAS tokens with appropriate permissions
+- Follow the principle of least privilege for all Azure resources and Service Principals
+- Validate deployments with `az deployment what-if` or `azd provision --preview` before applying changes
+
+## Understanding Managed Identity Implementation
+
+This solution uses Azure's managed identity feature to enhance security by eliminating the need for storage account keys:
+
+### How It Works
+
+1. **System-Assigned Managed Identity**: The Bicep template (`deploy-resources.bicep`) enables a system-assigned managed identity on the Automation Account:
+
+   ```bicep
+   identity: {
+     type: 'SystemAssigned'
+   }
+   ```
+
+2. **Role Assignment**: The GitHub Actions workflow (`deploy-automation-vars.yml`) assigns the "Storage Blob Data Contributor" role to this managed identity:
+
+   ```powershell
+   # Get the Automation Account's managed identity principal ID
+   $principalId = $automationAccount.Identity.PrincipalId
+   
+   # Create the role assignment
+   New-AzRoleAssignment -ObjectId $principalId -RoleDefinitionId $roleDefinitionId -Scope $storageAccount.Id
+   ```
+
+3. **Authentication in Code**: The PowerShell runbook authenticates using this managed identity:
+
+   ```powershell
+   # Connect using managed identity
+   Connect-AzAccount -Identity
+   
+   # Create storage context using connected account (no keys required)
+   $context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
+   ```
+
+This approach is more secure than using storage account keys because:
+
+- No sensitive credentials are stored in variables or code
+- Authentication is handled by Azure's secure identity platform
+- Access can be precisely controlled through role-based access control (RBAC)
+- Credentials don't need to be rotated manually
+
+## Script Architecture
+
+The PowerShell runbook (`GetEnterpriseUsage.ps1`) follows a modular, function-based architecture:
+
+1. **Configuration Section**: Defines variables and settings needed for the script operation
+2. **Function Definitions**: 
+   - `Get-CopilotMetricsData`: Handles API calls to GitHub with comprehensive error handling
+   - `Upload-ToAzureBlob`: Manages secure Azure Blob Storage uploads using managed identity
+3. **Main Script Execution**: Orchestrates the workflow in clear, sequential steps
+
+Key features:
+
+- **Managed Identity Authentication**: Uses Azure's managed identity for secure, key-less access to Azure Storage
+- **Robust Error Handling**: Multiple fallback mechanisms for API failures and null response handling
+- **No Local File Dependencies**: Operates entirely in memory with minimal reliance on the file system (critical for Automation runbooks)
+- **Clean Function-Based Design**: Makes the code modular, testable, and easier to maintain
+- **Detailed Logging**: Clear status messages throughout execution for easier troubleshooting
+
+The script demonstrates a modern PowerShell approach that prioritizes security through managed identities rather than stored connection strings or keys.
+
+## Future Enhancements
+
+Potential improvements for this project:
+
+1. **Enhanced Error Notifications**: Configure Azure Monitor alerts for runbook failures
+2. **Data Analytics Integration**: Connect Azure Storage to Power BI for Copilot usage dashboards
+3. **Historical Trend Analysis**: Extend the script to retrieve data for multiple dates and generate trend reports
+4. **Multi-Organization Support**: Expand to collect metrics from multiple GitHub organizations
+5. **Retention Policy**: Implement automated data lifecycle management for long-term storage efficiency

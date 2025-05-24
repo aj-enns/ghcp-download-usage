@@ -85,8 +85,16 @@ resource containerExisting 'Microsoft.Storage/storageAccounts/blobServices/conta
   }
 }
 
-// Role assignment is now handled in the GitHub Actions workflow (deploy-automation-vars.yml)
-// to avoid permission issues with service principals that lack User Access Administrator rights
+// Assign "Storage Blob Data Contributor" role to Automation Account's managed identity
+resource roleAssignmentStorageBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(automationAccount.id, 'StorageBlobDataContributor', (createNewStorageAccount ? storageAccount.id : existingStorageAccount.id))
+  scope: createNewStorageAccount ? storageAccount : existingStorageAccount
+  properties: {
+    principalId: automationAccount.identity.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor role
+    principalType: 'ServicePrincipal'
+  }
+}
 
 // Outputs for reference in scripts and other deployments
 output automationAccountId string = automationAccount.id
