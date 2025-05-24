@@ -79,7 +79,7 @@ jobs:
               # Use $env: prefix to access environment variables in PowerShell
             try {
                 Write-Host "Creating Automation Variable: GitHubToken"
-                New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
+                New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "authToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
                 
                 Write-Host "Creating Automation Variable: StorageAccountName"
                 New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted $false
