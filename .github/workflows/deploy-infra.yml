@@ -67,7 +67,6 @@ jobs:
           AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           STORAGE_ACCOUNT_KEY: $AZURE_STORAGE_ACCOUNT_KEY
         run: |
-          az extension add --name automation
           pwsh -Command "Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'GitHubToken' -Value '$env:GITHUB_PAT' -Encrypted $true"
           pwsh -Command "Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'StorageAccountName' -Value '$env:AZURE_STORAGE_ACCOUNT_NAME'"
           pwsh -Command "Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'StorageAccountKey' -Value '$env:STORAGE_ACCOUNT_KEY' -Encrypted $true"
