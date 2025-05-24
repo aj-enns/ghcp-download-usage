@@ -38,16 +38,33 @@ try {
     
     # Define the blob name with new naming convention
     $blobName = "ghcp_metrics_usage_$yesterday.json"
-      # Convert the response to JSON
-    $jsonContent = $response | ConvertTo-Json -Depth 10
+    
+    # Check if response contains data
+    if ($null -eq $response) {
+        Write-Warning "API returned null response. Creating empty JSON object. This likely means no data was found for the specified date."
+        $jsonContent = "{}"
+    } else {
+        # Convert the response to JSON
+        $jsonContent = $response | ConvertTo-Json -Depth 10
+        
+        # Ensure the JSON content is not null
+        if ([string]::IsNullOrEmpty($jsonContent)) {
+            Write-Warning "JSON conversion resulted in null or empty string. Creating empty JSON object."
+            $jsonContent = "{}"
+        }
+    }
     
     # Display success message
     Write-Host "Success! Retrieved Copilot billing usage data for $yesterday"
     
-    # Display summary information
+    # Display summary information if available
     Write-Host "`nSummary for $yesterday"
-    Write-Host "Total active users: $($response.total_active_users)"
-    Write-Host "Total active seats: $($response.total_active_seats)"
+    if ($null -ne $response -and $null -ne $response.total_active_users) {
+        Write-Host "Total active users: $($response.total_active_users)"
+        Write-Host "Total active seats: $($response.total_active_seats)"
+    } else {
+        Write-Host "No summary data available."
+    }
     
     # Upload to Azure Storage if storage account is provided
     if ($StorageAccountName) {
@@ -92,23 +109,47 @@ try {
                 "Source" = "GHCopilotMetrics"
                 "Organization" = $org
             }
+              # Ensure JSON content is not null or empty before proceeding
+            if ([string]::IsNullOrEmpty($jsonContent)) {
+                $jsonContent = "{}" # Use empty JSON object if content is null
+            }
             
-            # Convert JSON content to bytes
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonContent)
-            $stream = [System.IO.MemoryStream]::new($bytes)
-            
-            # Upload directly from memory stream
-            $blob = Set-AzStorageBlobContent -Container $ContainerName `
-                                           -Context $context `
-                                           -Blob $blobName `
-                                           -Stream $stream `
-                                           -Properties @{ContentType = "application/json"} `
-                                           -Metadata $metadata `
-                                           -StandardBlobTier "Hot" `
-                                           -Force
-
-            # Close the stream
-            $stream.Close()
+            try {
+                # Convert JSON content to bytes with explicit error handling
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes($jsonContent)
+                $stream = [System.IO.MemoryStream]::new($bytes)
+                  # Upload directly from memory stream
+                Set-AzStorageBlobContent -Container $ContainerName `
+                                       -Context $context `
+                                       -Blob $blobName `
+                                       -Stream $stream `
+                                       -Properties @{ContentType = "application/json"} `
+                                       -Metadata $metadata `
+                                       -StandardBlobTier "Hot" `
+                                       -Force | Out-Null
+                
+                # Close the stream
+                $stream.Close()
+            }
+            catch {
+                Write-Error "Error processing JSON content: $_"
+                  # Fallback: Write a simple empty JSON object directly
+                Write-Host "Falling back to direct string upload method..."
+                $emptyJson = "{}"
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes($emptyJson)
+                $stream = [System.IO.MemoryStream]::new($bytes)
+                
+                Set-AzStorageBlobContent -Container $ContainerName `
+                                       -Context $context `
+                                       -Blob $blobName `
+                                       -Stream $stream `
+                                       -Properties @{ContentType = "application/json"} `
+                                       -Metadata $metadata `
+                                       -StandardBlobTier "Hot" `
+                                       -Force | Out-Null
+                
+                $stream.Close()
+            }
             
             # Display the blob URL
             $blobUrl = "$($context.BlobEndPoint)$ContainerName/$blobName"
