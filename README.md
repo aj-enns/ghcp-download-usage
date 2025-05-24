@@ -74,7 +74,7 @@ The output will look like this:
 }
 ```
 
-### 3. Add this JSON as the value for the `AZURE_CREDENTIALS` secret in your GitHub repository
+#### Add this JSON as the value for the `AZURE_CREDENTIALS` secret in your GitHub repository
 - Go to your repository’s **Settings** > **Secrets and variables** > **Actions**.
 - Click **New repository secret**.
 - Name: `AZURE_CREDENTIALS`
@@ -82,14 +82,14 @@ The output will look like this:
 
 This secret will be used by the `azure/login@v2` GitHub Action to authenticate your workflow.
 
-### 4. Add the following to your GitHub repository (as secrets or variables as appropriate):
+### 3. Add the following to your GitHub repository (as secrets or variables as appropriate):
   - `AZURE_RESOURCE_GROUP` (secret or variable): Your resource group name
   - `AZURE_AUTOMATION_ACCOUNT` (secret or variable): Your Automation Account name
   - `AZURE_LOCATION` (variable): Your Azure region (e.g., canadacentral)
   - `AZURE_CONTAINER_NAME` (variable): Your blob container name
   - `AZURE_STORAGE_ACCOUNT_NAME` (variable): Your storage account name (optional, only if you want to override the default)
 
-### 5. **Assign the necessary roles to your service principal:**
+### 4. **Assign the necessary roles to your service principal:**
 
   _Please pick from ONE of the two following options:_
   ```sh
@@ -102,12 +102,12 @@ This secret will be used by the `azure/login@v2` GitHub Action to authenticate y
   
   Note: If you prefer not to grant "User Access Administrator" role to your service principal, you can manually assign the "Storage Blob Data Contributor" role to the Automation Account's managed identity after deployment.
 
-### 6. Deploy the Infrastructure Using GitHub Actions
+### 5. Deploy the Infrastructure Using GitHub Actions
 - Go to the **Actions** tab in your GitHub repository.
 - Select the **Deploy Runbook Infra** workflow.
 - Click **Run workflow** to deploy the Bicep template and provision all required Azure resources.
 
-### 7. Set Up Azure Automation Account Variables
+### 6. Set Up Azure Automation Account Variables
 After the infrastructure is deployed, you can set up the required Automation Account variables for your runbook:
 
 ####  Using the deploy-automation-vars.yml GitHub Actions Workflow
@@ -185,7 +185,7 @@ To run the runbook on a regular schedule:
      --schedule-name "DailyGHCopilotMetrics"
    ```
 
-### 7. Testing and Validation
+### 9. Testing and Validation
 
 After deployment, it's important to verify that the managed identity and role assignments are working correctly:
 
