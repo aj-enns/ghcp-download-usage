@@ -40,7 +40,7 @@ jobs:
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --name "GetGHCPUsageData" \
-            --content @./GetGHCPUsageData/run.ps1
+            --content @./GetGHCPUsageData/GetEnterpriseUsage.ps1
 
 # Required secrets:
 # - AZURE_CREDENTIALS: Azure service principal credentials (JSON)

@@ -97,7 +97,7 @@ az automation variable create \
 ```
 
 ### 5. Deploy the Runbook Script
-You can deploy the PowerShell script (`GetGHCPUsageData/run.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:
+You can deploy the PowerShell script (`GetGHCPUsageData/GetEnterpriseUsage.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:
 
 ```sh
 az automation runbook create \
@@ -111,7 +111,7 @@ az automation runbook replace-content \
   --automation-account-name <your-automation-account> \
   --resource-group <your-resource-group> \
   --name "GetGHCPUsageData" \
-  --content @./GetGHCPUsageData/run.ps1
+  --content @./GetGHCPUsageData/GetEnterpriseUsage.ps1
 ```
 
 Or use the `.github/workflows/deploy-automation-runbook.yml` workflow to automate this step.
