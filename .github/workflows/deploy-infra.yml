@@ -59,6 +59,13 @@ jobs:
           echo "AZURE_STORAGE_ACCOUNT_KEY=$ACCOUNT_KEY" >> $GITHUB_ENV
 
       - name: Create Automation Account Variables
+        env:
+          AZURE_AUTOMATION_ACCOUNT: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+          AZURE_STORAGE_ACCOUNT_KEY: ${{ env.AZURE_STORAGE_ACCOUNT_KEY }}
         uses: azure/powershell@v1
         with:
           azPSVersion: 'latest'
@@ -67,9 +74,9 @@ jobs:
             Install-Module -Name Az.Automation -Force -Scope CurrentUser
             Import-Module Az.Accounts
             Import-Module Az.Automation
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" -Name GitHubToken -Value "${{ secrets.REPO_PAT }}" -Encrypted:$true
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" -Name StorageAccountName -Value "$env:AZURE_STORAGE_ACCOUNT_NAME" -Encrypted:$false
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" -Name StorageAccountKey -Value "$env:AZURE_STORAGE_ACCOUNT_KEY" -Encrypted:$true
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" -Name ContainerName -Value "$env:AZURE_CONTAINER_NAME" -Encrypted:$false
+            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name GitHubToken -Value "$AZURE_STORAGE_ACCOUNT_KEY" -Encrypted:$true
+            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name StorageAccountName -Value "$AZURE_STORAGE_ACCOUNT_NAME" -Encrypted:$false
+            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name StorageAccountKey -Value "$AZURE_STORAGE_ACCOUNT_KEY" -Encrypted:$true
+            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name ContainerName -Value "$AZURE_CONTAINER_NAME" -Encrypted:$false
           failOnStandardError: true
 
