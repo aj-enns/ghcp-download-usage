@@ -1,12 +1,13 @@
 # ghcp-download-usage
 
 ## Overview
-This project provides an Azure Automation Runbook (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments.
+This project provides an Azure Automation Runbook (PowerShell) that downloads GitHub Copilot user adoption metrics and uploads the data to Azure Blob Storage. Infrastructure is managed using Bicep (IaC) files for secure, repeatable deployments. The solution uses Azure Managed Identity for secure, key-less authentication to Azure Storage.
 
 ## What It Does
 - Calls the GitHub Copilot API to retrieve user adoption metrics.
 - Stores the data as JSON in Azure Blob Storage.
 - Uses Azure Automation Account variables for secrets and configuration.
+- Uses Azure Managed Identity for secure, key-less authentication to Azure Storage.
 - Deploys all Azure resources using Bicep (infra/ folder).
 - Supports CI/CD deployment via GitHub Actions.
 
@@ -74,15 +75,31 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
 - Click **Run workflow** to deploy the Bicep template and provision all required Azure resources.
 
 ### 4. Set Up Azure Automation Account Variables
-After the infrastructure is deployed, set up the required Automation Account variables for your runbook:
+After the infrastructure is deployed, you can set up the required Automation Account variables for your runbook in two ways:
 
-**Tip:** You can deploy the infrastructure using the `.github/workflows/deploy-infra.yml` GitHub Actions workflow. Go to the **Actions** tab in your GitHub repository, select **Deploy Azure Infrastructure**, and click **Run workflow**. This will provision all required Azure resources automatically. Once the workflow completes, continue with the steps below to set up Automation Account variables.
+#### Option 1: Using the deploy-automation-vars.yml GitHub Actions Workflow (Recommended)
+This automated workflow sets up all necessary variables in your Automation Account:
+
+1. Go to the **Actions** tab in your GitHub repository.
+2. Select the **Deploy Runbook Vars** workflow.
+3. Click **Run workflow** to create all required variables in your Automation Account.
+
+The workflow automatically:
+- Creates the following variables in your Automation Account:
+  - `authToken`: Your GitHub Personal Access Token (from `REPO_PAT` secret)
+  - `StorageAccountName`: Your storage account name
+  - `ContainerName`: Your blob container name
+  
+Note: This project uses Azure managed identity for secure, key-less authentication to Azure Storage.
+
+#### Option 2: Manual Setup Using Azure CLI
+If you prefer to set up the variables manually:
 
 ```sh
 az automation variable create \
   --resource-group <your-resource-group> \
   --automation-account-name <your-automation-account> \
-  --name GitHubToken \
+  --name authToken \
   --value <your-github-token> --encrypted true
 
 az automation variable create \
@@ -94,15 +111,11 @@ az automation variable create \
 az automation variable create \
   --resource-group <your-resource-group> \
   --automation-account-name <your-automation-account> \
-  --name StorageAccountKey \
-  --value <your-storage-account-key> --encrypted true
-
-az automation variable create \
-  --resource-group <your-resource-group> \
-  --automation-account-name <your-automation-account> \
   --name ContainerName \
   --value <your-container-name>
 ```
+
+Note: Storage account key is not needed as the runbook uses the Automation Account's managed identity to access the storage account.
 
 ### 5. Deploy the Runbook Script
 You can deploy the PowerShell script (`GetGHCPUsageData/GetEnterpriseUsage.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:
@@ -160,11 +173,13 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
 
 This secret will be used by the `azure/login@v2` GitHub Action to authenticate your workflow.
 
-## Deploying Infrastructure from GitHub Actions
+## GitHub Actions Workflows
+
+### 1. Deploying Infrastructure - `deploy-infra.yml`
 
 You can deploy the Azure infrastructure (Automation Account, Storage, etc.) using the provided GitHub Actions workflow: `.github/workflows/deploy-infra.yml`.
 
-### Steps to Deploy
+#### Steps to Deploy
 
 1. **Ensure required secrets are set in your GitHub repository:**
    - `AZURE_CREDENTIALS`: Output from `az ad sp create-for-rbac ... --sdk-auth`
@@ -191,9 +206,50 @@ You can deploy the Azure infrastructure (Automation Account, Storage, etc.) usin
    - The workflow logs will show the progress and results of the deployment.
    - Any errors or issues will be displayed in the Actions run output.
 
+### 2. Setting Up Azure Automation Variables - `deploy-automation-vars.yml`
+
+This workflow automates the creation of required variables in your Azure Automation Account.
+
+#### Prerequisites
+
+1. **Required GitHub Secrets:**
+   - `AZURE_CREDENTIALS`: Azure service principal credentials in JSON format
+   - `AZURE_AUTOMATION_ACCOUNT`: Your Azure Automation Account name
+   - `REPO_PAT`: Your GitHub Personal Access Token
+
+2. **Required GitHub Variables:**
+   - `AZURE_RESOURCE_GROUP`: Your Azure resource group name
+   - `AZURE_LOCATION`: Azure region (e.g., canadacentral)
+   - `AZURE_CONTAINER_NAME`: Your blob container name
+   - `AZURE_STORAGE_ACCOUNT_NAME`: Your storage account name
+
+#### Steps to Run
+
+1. **Trigger the workflow manually:**
+   - Go to the **Actions** tab in your GitHub repository.
+   - Select the **Deploy Runbook Vars** workflow.
+   - Click the **Run workflow** button and confirm.
+
+2. **What the workflow does:**
+   - Logs in to Azure using the service principal credentials.
+   - Retrieves the storage account key from your storage account.
+   - Creates the following variables in your Azure Automation Account:
+     - `authToken`: Your GitHub PAT for accessing the Copilot API
+     - `StorageAccountName`: Name of your Azure Storage account
+     - `StorageAccountKey`: Access key for your storage account (encrypted)
+     - `ContainerName`: Name of your blob container
+
+3. **Monitor the deployment:**
+   - The workflow logs will show the progress and results.
+   - Any errors will be displayed in the Actions run output.
+
+### 3. Deploying Runbook - `deploy-automation-runbook.yml`
+
+This workflow deploys the PowerShell runbook script to your Azure Automation Account.
+
 **Note:**
-- You can also run the Bicep deployment locally using the Azure CLI if needed (see earlier instructions in this README).
-- The workflow only runs when triggered manually (not on push).
+- You can also run these deployments locally using the Azure CLI if needed (see earlier instructions in this README).
+- The workflows only run when triggered manually or on specific file changes.
 
 ## References
 - [Azure Automation PowerShell Runbooks](https://learn.microsoft.com/azure/automation/automation-runbook-types)
@@ -202,6 +258,7 @@ You can deploy the Azure infrastructure (Automation Account, Storage, etc.) usin
 
 ## Security & Best Practices
 - Never hardcode secrets; always use Azure Key Vault or Automation Account variables.
-- Use managed identities where possible.
+- Use managed identities where possible (this solution uses managed identity for Azure Storage access).
+- Avoid using storage account keys; prefer managed identities or SAS tokens with appropriate permissions.
 - Follow the principle of least privilege for all Azure resources and Service Principals.
 - Validate deployments with `az deployment what-if` or `azd provision --preview` before applying changes.

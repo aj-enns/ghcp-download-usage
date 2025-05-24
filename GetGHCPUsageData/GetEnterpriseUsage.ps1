@@ -1,9 +1,9 @@
 # GitHub Copilot Metrics API - Daily Usage Script with Azure Storage Upload
 # Purpose: Fetch Copilot usage metrics for yesterday and upload to Azure Storage
 
+# Get required variables from Automation Account
 $StorageAccountName = Get-AutomationVariable -Name 'StorageAccountName'
-$ContainerName = Get-AutomationVariable -Name 'ContainerName' 
-$StorageAccountKey = Get-AutomationVariable -Name 'StorageAccountKey'
+$ContainerName = Get-AutomationVariable -Name 'ContainerName'
 # Get authentication token from environment for security
 $authToken = Get-AutomationVariable -Name 'authToken'
 
@@ -55,31 +55,37 @@ try {
     # Upload to Azure Storage if storage account is provided
     if ($StorageAccountName) {
         Write-Host "`nUploading metrics to Azure Storage..."
-        
-        # Import Azure Storage module if not already loaded
+          # Import Azure Storage module if not already loaded
         if (-not (Get-Module -Name Az.Storage -ListAvailable)) {
             Write-Host "Az.Storage module not found. Installing..."
             Install-Module -Name Az.Storage -Scope CurrentUser -Force
         }
         
+        if (-not (Get-Module -Name Az.Accounts -ListAvailable)) {
+            Write-Host "Az.Accounts module not found. Installing..."
+            Install-Module -Name Az.Accounts -Scope CurrentUser -Force
+        }
+        
+        Import-Module Az.Accounts
         Import-Module Az.Storage
         
         try {
-
-            # Use storage account key if provided (not recommended for production)
-            Write-Host "Using Storage Account Key for authentication (consider using Managed Identity instead)..."
-            $context = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $StorageAccountKey
+            # Connect using the Automation Account's managed identity
+            Write-Host "Connecting with Managed Identity..."
+            Connect-AzAccount -Identity
+            
+            # Get storage context using the DefaultAzureCredential
+            Write-Host "Getting storage context using Managed Identity..."
+            $context = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 
             # Check if container exists, create if it doesn't
-  
             $containerExists = Get-AzStorageContainer -Name $ContainerName -Context $context -ErrorAction SilentlyContinue
             if (-not $containerExists) {
                 Write-Host "Container '$ContainerName' does not exist. Creating..."
                 New-AzStorageContainer -Name $ContainerName -Context $context -Permission Off | Out-Null
             }
-            
-            # Upload the JSON content directly to blob storage
-            Write-Host "Uploading $localOutputFile to $ContainerName container..."
+              # Upload the JSON content directly to blob storage
+            Write-Host "Uploading $BlobName to $ContainerName container using Managed Identity..."
             
             $blobProperties = @{
                 File = $tempFile

@@ -23,6 +23,9 @@ resource automationAccount 'Microsoft.Automation/automationAccounts@2020-01-13-p
   name: automationAccountName
   location: location
   dependsOn: [resourceGroupModule]
+  identity: {
+    type: 'SystemAssigned' // Enable managed identity
+  }
   properties: {
     sku: {
       name: 'Basic'
@@ -82,9 +85,21 @@ resource containerExisting 'Microsoft.Storage/storageAccounts/blobServices/conta
   }
 }
 
+// Assign "Storage Blob Data Contributor" role to Automation Account's managed identity
+resource roleAssignmentStorageBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(automationAccount.id, 'StorageBlobDataContributor', (createNewStorageAccount ? storageAccount.id : existingStorageAccount.id))
+  scope: createNewStorageAccount ? storageAccount : existingStorageAccount
+  properties: {
+    principalId: automationAccount.identity.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor role
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Outputs for reference in scripts and other deployments
 output automationAccountId string = automationAccount.id
 output automationAccountName string = automationAccount.name
+output automationAccountPrincipalId string = automationAccount.identity.principalId
 output storageAccountId string = (createNewStorageAccount ? storageAccount.id : existingStorageAccount.id)
 output storageAccountName string = finalStorageAccountName
 output containerId string = (createNewStorageAccount ? container.id : containerExisting.id)
