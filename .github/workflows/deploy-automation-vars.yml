@@ -12,6 +12,26 @@ jobs:
   deploy-infra:
     runs-on: ubuntu-latest
     steps:
+  
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Extract Subscription ID
+        id: get-sub
+        run: |
+          SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)
+          echo "SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+
+      - name: Get Storage Account Key
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
+        run: |
+          ACCOUNT_KEY=$(az storage account keys list --account-name "$AZURE_STORAGE_ACCOUNT_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query '[0].value' -o tsv)
+          echo "AZURE_STORAGE_ACCOUNT_KEY=$ACCOUNT_KEY" >> $GITHUB_ENV
+          
       - name: Create Automation Account Variables
         env:
           AZURE_AUTOMATION_ACCOUNT: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}
@@ -19,7 +39,6 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_STORAGE_ACCOUNT_NAME }}
-          AZURE_STORAGE_ACCOUNT_KEY: ${{ env.AZURE_STORAGE_ACCOUNT_KEY }}
         uses: azure/powershell@v1
         with:
           azPSVersion: 'latest'
@@ -27,9 +46,14 @@ jobs:
             Install-Module -Name Az.Accounts -Force -Scope CurrentUser
             Install-Module -Name Az.Automation -Force -Scope CurrentUser
             Import-Module Az.Accounts
-            Import-Module Az.Automation
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name GitHubToken -Value "$AZURE_STORAGE_ACCOUNT_KEY" -Encrypted:$true
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name StorageAccountName -Value "$AZURE_STORAGE_ACCOUNT_NAME" -Encrypted:$false
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name StorageAccountKey -Value "$AZURE_STORAGE_ACCOUNT_KEY" -Encrypted:$true
-            Set-AzAutomationVariable -ResourceGroupName "$AZURE_RESOURCE_GROUP" -AutomationAccountName "$AZURE_AUTOMATION_ACCOUNT" -Name ContainerName -Value "$AZURE_CONTAINER_NAME" -Encrypted:$false
+            Import-Module Az.Automation            # Debug information to help diagnose issues
+            Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
+            Write-Host "Automation Account: $env:AZURE_AUTOMATION_ACCOUNT"
+            Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
+            Write-Host "Container Name: $env:AZURE_CONTAINER_NAME"
+              # Use $env: prefix to access environment variables in PowerShell
+            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "GitHubToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
+            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted:$false
+            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountKey" -Value $env:AZURE_STORAGE_ACCOUNT_KEY -Encrypted $true
+            Set-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "ContainerName" -Value $env:AZURE_CONTAINER_NAME -Encrypted:$false
           failOnStandardError: true
