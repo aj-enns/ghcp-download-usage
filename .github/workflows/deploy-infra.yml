@@ -72,8 +72,8 @@ jobs:
             Install-Module -Name Az.Automation -Force -Scope CurrentUser;
             Import-Module Az.Accounts;
             Import-Module Az.Automation;
-            Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'GitHubToken' -Value '$env:GITHUB_PAT' -Encrypted:$true;
+            Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'GitHubToken' -Value '$env:GITHUB_PAT' -Encrypted $true;
             Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'StorageAccountName' -Value '$env:AZURE_STORAGE_ACCOUNT_NAME';
-            Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'StorageAccountKey' -Value '$env:STORAGE_ACCOUNT_KEY' -Encrypted:$true;
+            Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'StorageAccountKey' -Value '$env:STORAGE_ACCOUNT_KEY' -Encrypted $true;
             Set-AzAutomationVariable -ResourceGroupName '$env:AZURE_RESOURCE_GROUP' -AutomationAccountName '$env:AZURE_AUTOMATION_ACCOUNT' -Name 'ContainerName' -Value '$env:AZURE_CONTAINER_NAME'
           "
