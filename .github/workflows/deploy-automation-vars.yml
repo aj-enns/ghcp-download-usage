@@ -49,7 +49,7 @@ jobs:
             Import-Module Az.Storage
             Import-Module Az.Resources
               
-            # Debug information to help diagnose issues
+            # Debug informati   on to help diagnose issues
             Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
             Write-Host "Automation Account: $env:AZURE_AUTOMATION_ACCOUNT"            
             Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
