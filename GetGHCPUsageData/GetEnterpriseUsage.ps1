@@ -38,9 +38,11 @@ try {
     
     # Define the blob name with new naming convention
     $blobName = "ghcp_metrics_usage_$yesterday.json"
-    
-    # Convert the response to JSON
+      # Convert the response to JSON
     $jsonContent = $response | ConvertTo-Json -Depth 10
+    
+    # Display success message
+    Write-Host "Success! Retrieved Copilot billing usage data for $yesterday"
     
     # Display summary information
     Write-Host "`nSummary for $yesterday"
