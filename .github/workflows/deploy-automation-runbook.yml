@@ -1,10 +1,11 @@
 # This workflow deploys the PowerShell script as an Azure Automation Runbook on push to updating-powershell
-name: Deploy Azure Automation Runbook
+name: Deploy Runbook
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - updating-powershell
+      - main
 
 jobs:
   deploy-runbook:
