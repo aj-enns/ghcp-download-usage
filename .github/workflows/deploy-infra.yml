@@ -1,10 +1,13 @@
-name: Deploy Azure Automation Runbook Infra
+name: Deploy Runbook Infra
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/deploy-infra.yml
+      - infra/**
 
 jobs:
   deploy-infra:
