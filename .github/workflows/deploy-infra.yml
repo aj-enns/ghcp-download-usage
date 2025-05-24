@@ -69,18 +69,18 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
             --name GitHubToken \
-            --value "$GITHUB_sub" --encrypted true
-          az automation variable create \
+            --value "$GITHUB_PAT" --encrypted true
+          az automation variable set \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
             --name StorageAccountName \
             --value "$AZURE_STORAGE_ACCOUNT_NAME"
-          az automation variable create \
+          az automation variable set \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
             --name StorageAccountKey \
             --value "$STORAGE_ACCOUNT_KEY" --encrypted true
-          az automation variable create \
+          az automation variable set \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --automation-account-name "$AZURE_AUTOMATION_ACCOUNT" \
             --name ContainerName \
