@@ -62,12 +62,23 @@ az ad sp create-for-rbac --name "<service-principal-name>" --role contributor --
   - `AZURE_CONTAINER_NAME` (variable): Your blob container name
   - `AZURE_STORAGE_ACCOUNT_NAME` (variable): Your storage account name (optional, only if you want to override the default)
 
-- **Assign the Contributor role to your service principal at the subscription level:**
+- **Assign the necessary roles to your service principal:**
 
   ```sh
+  # Required for deploying resources at subscription level
   az role assignment create --assignee <client_id> --role Contributor --scope /subscriptions/<subscription-id>
+  
+  # Required for creating role assignments in the GitHub Actions workflow
+  az role assignment create --assignee <client_id> --role "User Access Administrator" --scope /subscriptions/<subscription-id>/resourceGroups/<your-resource-group>
   ```
-  Replace `<client_id>` with your service principal's clientId and `<subscription-id>` with your Azure subscription ID. This is required for deployments that create resource groups or use subscription-scoped modules in Bicep.
+  Replace `<client_id>` with your service principal's clientId, `<subscription-id>` with your Azure subscription ID, and `<your-resource-group>` with your resource group name.
+  
+  Note: If you prefer not to grant "User Access Administrator" role to your service principal, you can manually assign the "Storage Blob Data Contributor" role to the Automation Account's managed identity after deployment.
+
+  Next assign the "User Access Administrator" role to the service principal for the resource group where the Automation Account will be created. This is necessary for the GitHub Actions workflow to create role assignments.
+```sh
+az role assignment create --assignee <client_id> --role "User Access Administrator" --scope /subscriptions/<subscription-id>/resourceGroups/rg-ghcp-usage
+```
 
 ### 3. Deploy Infrastructure Using GitHub Actions
 - Go to the **Actions** tab in your GitHub repository.
@@ -116,6 +127,18 @@ az automation variable create \
 ```
 
 Note: Storage account key is not needed as the runbook uses the Automation Account's managed identity to access the storage account.
+
+### Role Assignment Management
+
+This solution uses Azure Managed Identity to securely access the storage account without keys. The role assignments are managed in two possible ways:
+
+1. **Via GitHub Actions Workflow (Recommended)**: The `deploy-automation-vars.yml` workflow assigns the "Storage Blob Data Contributor" role to the Automation Account's managed identity.
+   
+2. **Manually**: If your service principal doesn't have "User Access Administrator" rights, assign the role manually:
+   ```sh
+   az role assignment create --assignee <automation-account-principal-id> --role "Storage Blob Data Contributor" --scope /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<storage-account>
+   ```
+   You can get the `automation-account-principal-id` from the Azure Portal or from the output of the Bicep deployment.
 
 ### 5. Deploy the Runbook Script
 You can deploy the PowerShell script (`GetGHCPUsageData/GetEnterpriseUsage.ps1`) to your Automation Account using the provided GitHub Actions workflow or manually with the Azure CLI:

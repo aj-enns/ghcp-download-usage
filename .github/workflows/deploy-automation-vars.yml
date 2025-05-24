@@ -24,9 +24,9 @@ jobs:
         id: get-sub
         run: |
           SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .subscriptionId)
-          echo "AZURE_SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV      # No need to get storage account key anymore - using managed identity instead
+          echo "AZURE_SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
           
-      - name: Create Automation Account Variables
+      - name: Create Automation Account Variables and Setup Role Assignments
         env:
           AZURE_AUTOMATION_ACCOUNT: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
@@ -37,12 +37,19 @@ jobs:
         uses: azure/powershell@v1
         with:
           azPSVersion: 'latest'
-          inlineScript: |            # Install and import required modules
+          inlineScript: |
+            # Install and import required modules
             Install-Module -Name Az.Accounts -Force -Scope CurrentUser
             Install-Module -Name Az.Automation -Force -Scope CurrentUser
+            Install-Module -Name Az.Storage -Force -Scope CurrentUser
+            Install-Module -Name Az.Resources -Force -Scope CurrentUser
+            
             Import-Module Az.Accounts
             Import-Module Az.Automation
-              # Debug information to help diagnose issues
+            Import-Module Az.Storage
+            Import-Module Az.Resources
+              
+            # Debug information to help diagnose issues
             Write-Host "Resource Group: $env:AZURE_RESOURCE_GROUP"
             Write-Host "Automation Account: $env:AZURE_AUTOMATION_ACCOUNT"            
             Write-Host "Storage Account Name: $env:AZURE_STORAGE_ACCOUNT_NAME"
@@ -67,11 +74,13 @@ jobs:
                 Write-Error "Failed to connect to Azure: $_"
                 throw $_
             }
-              # Use $env: prefix to access environment variables in PowerShell
+              
+            # Create Automation Account variables
             try {
                 Write-Host "Creating Automation Variable: GitHubToken"
                 New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "authToken" -Value "${{ secrets.REPO_PAT }}" -Encrypted $true
-                  Write-Host "Creating Automation Variable: StorageAccountName"
+                  
+                Write-Host "Creating Automation Variable: StorageAccountName"
                 New-AzAutomationVariable -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name "StorageAccountName" -Value $env:AZURE_STORAGE_ACCOUNT_NAME -Encrypted $false
                 
                 Write-Host "Creating Automation Variable: ContainerName"
@@ -81,6 +90,67 @@ jobs:
             }
             catch {
                 Write-Error "Failed to create automation variables: $_"
+                Write-Error $_.Exception.Message
+                Write-Error $_.ScriptStackTrace
+                throw $_
+            }
+
+            # Setup role assignment - Assign "Storage Blob Data Contributor" role to the Automation Account's managed identity
+            try {
+                # Get the Automation Account
+                Write-Host "Getting Automation Account information..."
+                $automationAccount = Get-AzAutomationAccount -ResourceGroupName $env:AZURE_RESOURCE_GROUP -Name $env:AZURE_AUTOMATION_ACCOUNT
+                
+                if ($automationAccount -eq $null) {
+                    throw "Automation Account not found"
+                }
+                
+                # Get the principalId of the Automation Account's managed identity
+                $principalId = $automationAccount.Identity.PrincipalId
+                
+                if ([string]::IsNullOrEmpty($principalId)) {
+                    throw "Automation Account managed identity is not enabled or Principal ID is not available"
+                }
+                
+                Write-Host "Automation Account Principal ID: $principalId"
+                
+                # Get the Storage Account
+                Write-Host "Getting Storage Account information..."
+                $storageAccount = Get-AzStorageAccount -ResourceGroupName $env:AZURE_RESOURCE_GROUP -Name $env:AZURE_STORAGE_ACCOUNT_NAME
+                
+                if ($storageAccount -eq $null) {
+                    throw "Storage Account not found"
+                }
+                
+                # Role definition ID for "Storage Blob Data Contributor"
+                # GUID: ba92f5b4-2d11-453d-a403-e96b0029c9fe
+                $roleDefinitionId = "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+                
+                # Create a unique name for the role assignment using GUID
+                $roleAssignmentName = New-Guid
+                
+                Write-Host "Creating role assignment: $roleAssignmentName"
+                Write-Host "Principal ID: $principalId"
+                Write-Host "Role Definition ID: $roleDefinitionId"
+                Write-Host "Scope: $($storageAccount.Id)"
+                
+                # Check if role assignment already exists
+                $existingRoleAssignments = Get-AzRoleAssignment -ObjectId $principalId -RoleDefinitionId $roleDefinitionId -Scope $storageAccount.Id
+                
+                if ($existingRoleAssignments) {
+                    Write-Host "Role assignment already exists:"
+                    $existingRoleAssignments | Format-List
+                } else {
+                    # Create the role assignment
+                    Write-Host "Creating new role assignment..."
+                    $roleAssignment = New-AzRoleAssignment -ObjectId $principalId -RoleDefinitionId $roleDefinitionId -Scope $storageAccount.Id
+                    
+                    Write-Host "Role assignment created successfully:"
+                    $roleAssignment | Format-List
+                }
+            }
+            catch {
+                Write-Error "Failed to create role assignment: $_"
                 Write-Error $_.Exception.Message
                 Write-Error $_.ScriptStackTrace
                 throw $_
