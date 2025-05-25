@@ -155,4 +155,44 @@ jobs:
                 Write-Error $_.ScriptStackTrace
                 throw $_
             }
+            try {
+              Write-Host "Creating daily runbook schedule..."
+              
+              # Get current time and create schedule for 1 AM UTC daily
+              $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("UTC")
+              $startTime = (Get-Date).Date.AddDays(1).AddHours(1)  # Tomorrow at 1 AM
+              
+              # Check if schedule exists
+              $scheduleName = "Daily-GHCP-Usage-Download"
+              $existingSchedule = Get-AzAutomationSchedule -ResourceGroupName $env:AZURE_RESOURCE_GROUP -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT -Name $scheduleName -ErrorAction SilentlyContinue
+              
+              if ($existingSchedule) {
+                  Write-Host "Schedule '$scheduleName' already exists"
+              } else {
+                  # Create daily schedule
+                  $schedule = New-AzAutomationSchedule -ResourceGroupName $env:AZURE_RESOURCE_GROUP `
+                      -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT `
+                      -Name $scheduleName `
+                      -StartTime $startTime `
+                      -DayInterval 1 `
+                      -TimeZone "UTC"
+                  
+                  Write-Host "Schedule created: $($schedule.Name)"
+                  
+                  # Link schedule to runbook
+                  $runbookName = "GetGitHubCopilotUsage"
+                  Register-AzAutomationScheduledRunbook -ResourceGroupName $env:AZURE_RESOURCE_GROUP `
+                      -AutomationAccountName $env:AZURE_AUTOMATION_ACCOUNT `
+                      -RunbookName $runbookName `
+                      -ScheduleName $scheduleName
+                      
+                  Write-Host "Schedule linked to runbook '$runbookName'"
+              }
+            }
+            catch {
+                Write-Error "Failed to create runbook schedule: $_"
+                Write-Error $_.Exception.Message
+                Write-Error $_.ScriptStackTrace
+                # Don't throw here to allow the workflow to continue if schedule creation fails
+            }
           failOnStandardError: true
