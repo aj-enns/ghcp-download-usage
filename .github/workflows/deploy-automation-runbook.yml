@@ -89,21 +89,24 @@ jobs:
               --description "Daily schedule for GitHub Copilot usage download"
           else
             echo "Schedule 'Daily-GHCP-Usage-Download' already exists."
-          fi
+          fi          
           
           # Check if job schedule exists and create it if it doesn't
-          JOB_SCHEDULE_EXISTS=$(az automation schedule list \
+          echo "Checking for existing schedules linked to the runbook..."
+          LINKED_SCHEDULES=$(az automation schedule show \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
-            --runbook-name "GetGHCPUsageData" \
-            --query "length([?scheduleLink.name=='Daily-GHCP-Usage-Download'])" -o tsv)
-              if [ "$JOB_SCHEDULE_EXISTS" == "0" ]; then
-            echo "Creating job schedule to link runbook to schedule..."
-            az automation schedule create \
+            --name "Daily-GHCP-Usage-Download"
+            
+          if [ -z "$LINKED_SCHEDULES" ]; then
+            echo "Creating link between runbook and schedule..."
+            az automation runbook create \
               --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
               --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
-              --runbook-name "GetGHCPUsageData" \
-              --schedule-name "Daily-GHCP-Usage-Download"
+              --name "GetGHCPUsageData" \
+              --schedule-name "Daily-GHCP-Usage-Download" \
+              --description "Daily schedule for GitHub Copilot usage download" \
+              --runbook-type "PowerShell" 
             
             echo "Runbook successfully linked to schedule"
           else

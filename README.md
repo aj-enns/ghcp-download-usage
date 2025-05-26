@@ -182,9 +182,8 @@ If you want to view or modify the schedule:
      --frequency "Day" \
      --interval 1 \
      --start-time "$(date -d 'tomorrow 01:00' --iso-8601=seconds)" \
-     --timezone "UTC"
-     # Link the additional schedule to your runbook
-   az automation job-schedule create \
+     --timezone "UTC"   # Link the additional schedule to your runbook
+   az automation runbook link \
      --automation-account-name <your-automation-account> \
      --resource-group <your-resource-group> \
      --runbook-name "GetGHCPUsageData" \
