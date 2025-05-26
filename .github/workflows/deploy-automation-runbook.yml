@@ -92,7 +92,7 @@ jobs:
           fi
           
           # Check if job schedule exists and create it if it doesn't
-          JOB_SCHEDULE_EXISTS=$(az automation job schedule list \
+          JOB_SCHEDULE_EXISTS=$(az automation job-schedule list \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --runbook-name "GetGHCPUsageData" \
