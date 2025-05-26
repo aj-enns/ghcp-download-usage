@@ -26,7 +26,9 @@ jobs:
           if [ -z "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" ]; then echo "AZURE_AUTOMATION_ACCOUNT is not set"; exit 1; fi
           if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then echo "AZURE_RESOURCE_GROUP is not set"; exit 1; fi
           echo "Automation Account: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}"
-          echo "Resource Group: ${{ vars.AZURE_RESOURCE_GROUP }}"      - name: Create or Update Runbook
+          echo "Resource Group: ${{ vars.AZURE_RESOURCE_GROUP }}"
+      
+      - name: Create or Update Runbook
         run: |
           az extension add --name automation
           az automation runbook create \
