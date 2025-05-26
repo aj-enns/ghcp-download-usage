@@ -97,10 +97,9 @@ jobs:
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --runbook-name "GetGHCPUsageData" \
             --query "length([?scheduleLink.name=='Daily-GHCP-Usage-Download'])" -o tsv)
-            
-          if [ "$JOB_SCHEDULE_EXISTS" == "0" ]; then
+              if [ "$JOB_SCHEDULE_EXISTS" == "0" ]; then
             echo "Creating job schedule to link runbook to schedule..."
-            az automation job schedule create \
+            az automation job-schedule create \
               --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
               --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
               --runbook-name "GetGHCPUsageData" \

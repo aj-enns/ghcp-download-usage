@@ -183,8 +183,7 @@ If you want to view or modify the schedule:
      --interval 1 \
      --start-time "$(date -d 'tomorrow 01:00' --iso-8601=seconds)" \
      --timezone "UTC"
-   
-   # Link the additional schedule to your runbook
+     # Link the additional schedule to your runbook
    az automation job-schedule create \
      --automation-account-name <your-automation-account> \
      --resource-group <your-resource-group> \
