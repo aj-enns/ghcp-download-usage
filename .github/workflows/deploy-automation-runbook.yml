@@ -26,9 +26,7 @@ jobs:
           if [ -z "${{ secrets.AZURE_AUTOMATION_ACCOUNT }}" ]; then echo "AZURE_AUTOMATION_ACCOUNT is not set"; exit 1; fi
           if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then echo "AZURE_RESOURCE_GROUP is not set"; exit 1; fi
           echo "Automation Account: ${{ secrets.AZURE_AUTOMATION_ACCOUNT }}"
-          echo "Resource Group: ${{ vars.AZURE_RESOURCE_GROUP }}"
-
-      - name: Create or Update Runbook
+          echo "Resource Group: ${{ vars.AZURE_RESOURCE_GROUP }}"      - name: Create or Update Runbook
         run: |
           az extension add --name automation
           az automation runbook create \
@@ -38,11 +36,78 @@ jobs:
             --type PowerShell \
             --location canadacentral \
             --output none || true
+          
           az automation runbook replace-content \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
             --name "GetGHCPUsageData" \
             --content @./GetGHCPUsageData/GetEnterpriseUsage.ps1
+          
+          echo "Runbook content updated successfully"
+      
+      - name: Add delay before publishing
+        run: |
+          echo "Adding a 10 second delay before publishing the runbook..."
+          sleep 10
+          echo "Delay completed."
+
+      - name: Publish Runbook
+        run: |
+          echo "Publishing runbook..."
+          az automation runbook publish \
+            --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --name "GetGHCPUsageData"
+          
+          # Add a small delay after publication
+          sleep 5
+          echo "Runbook published successfully"
+
+      - name: Create and Link Schedule
+        run: |
+          echo "Setting up daily schedule for runbook..."
+          
+          # Check if the daily schedule exists
+          SCHEDULE_EXISTS=$(az automation schedule list \
+            --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --query "[?name=='Daily-GHCP-Usage-Download']" -o tsv)
+            
+          if [ -z "$SCHEDULE_EXISTS" ]; then
+            echo "Schedule 'Daily-GHCP-Usage-Download' not found. Creating it now..."
+            # Create tomorrow at 1 AM UTC schedule
+            az automation schedule create \
+              --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+              --name "Daily-GHCP-Usage-Download" \
+              --start-time "$(date -u -d 'tomorrow 01:00' '+%Y-%m-%dT%H:%M:%SZ')" \
+              --frequency "day" \
+              --interval 1 \
+              --time-zone "UTC" \
+              --description "Daily schedule for GitHub Copilot usage download"
+          else
+            echo "Schedule 'Daily-GHCP-Usage-Download' already exists."
+          fi
+          
+          # Check if job schedule exists and create it if it doesn't
+          JOB_SCHEDULE_EXISTS=$(az automation job schedule list \
+            --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --runbook-name "GetGHCPUsageData" \
+            --query "length([?scheduleLink.name=='Daily-GHCP-Usage-Download'])" -o tsv)
+            
+          if [ "$JOB_SCHEDULE_EXISTS" == "0" ]; then
+            echo "Creating job schedule to link runbook to schedule..."
+            az automation job schedule create \
+              --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
+              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+              --runbook-name "GetGHCPUsageData" \
+              --schedule-name "Daily-GHCP-Usage-Download"
+            
+            echo "Runbook successfully linked to schedule"
+          else
+            echo "Runbook is already linked to the schedule"
+          fi
 
 # Required secrets:
 # - AZURE_CREDENTIALS: Azure service principal credentials (JSON)

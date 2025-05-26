@@ -152,24 +152,31 @@ You can deploy the PowerShell script (`GetGHCPUsageData/GetEnterpriseUsage.ps1`)
 
 Use the `.github/workflows/deploy-automation-runbook.yml` workflow to automate this step.
 
-### 8. Schedule the Runbook
+### 8. Runbook Schedule
 
-To run the runbook on a regular schedule:
+The runbook is automatically scheduled to run daily at 1:00 AM UTC as part of the deployment process. This scheduling is handled by the GitHub Actions workflow (`deploy-automation-runbook.yml`) when you update the runbook content.
+
+If you want to view or modify the schedule:
 
 1. **In the Azure Portal:**
    - Navigate to your Automation Account
    - Select the runbook named "GetGHCPUsageData"
    - Click on "Schedules" in the left menu
-   - Click "Add a schedule"
-   - Choose between linking to an existing schedule or creating a new one
-   - For daily execution, create a schedule that runs once per day (recommended time: early morning)
+   - You should see the "Daily-GHCP-Usage-Download" schedule
+   - You can modify it or create additional schedules as needed
 
 2. **Using Azure CLI:**
 
    ```sh
-   # First, create a schedule
+   # View existing schedules
+   az automation schedule list \
+     --automation-account-name <your-automation-account> \
+     --resource-group <your-resource-group> \
+     --query "[].{Name:name, Frequency:frequency, StartTime:startTime}"
+   
+   # Create an additional schedule if needed
    az automation schedule create \
-     --name "DailyGHCopilotMetrics" \
+     --name "CustomScheduleName" \
      --automation-account-name <your-automation-account> \
      --resource-group <your-resource-group> \
      --frequency "Day" \
@@ -177,12 +184,12 @@ To run the runbook on a regular schedule:
      --start-time "$(date -d 'tomorrow 01:00' --iso-8601=seconds)" \
      --timezone "UTC"
    
-   # Then, link the schedule to your runbook
+   # Link the additional schedule to your runbook
    az automation job-schedule create \
      --automation-account-name <your-automation-account> \
      --resource-group <your-resource-group> \
      --runbook-name "GetGHCPUsageData" \
-     --schedule-name "DailyGHCopilotMetrics"
+     --schedule-name "CustomScheduleName"
    ```
 
 ### 9. Testing and Validation
