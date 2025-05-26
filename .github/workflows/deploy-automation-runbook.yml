@@ -96,7 +96,7 @@ jobs:
           LINKED_SCHEDULES=$(az automation schedule show \
             --automation-account-name ${{ secrets.AZURE_AUTOMATION_ACCOUNT }} \
             --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
-            --name "Daily-GHCP-Usage-Download"
+            --name "Daily-GHCP-Usage-Download" )
             
           if [ -z "$LINKED_SCHEDULES" ]; then
             echo "Creating link between runbook and schedule..."
