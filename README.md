@@ -114,9 +114,9 @@ After the infrastructure is deployed, you can set up the required Automation Acc
 
 This automated workflow sets up all necessary variables in your Automation Account and configures the role assignment:
 
-1. Go to the **Actions** tab in your GitHub repository.
-2. Select the **Deploy Runbook Vars** workflow.
-3. Click **Run workflow** to create all required variables in your Automation Account.
+-  Go to the **Actions** tab in your GitHub repository.
+-  Select the **Deploy Runbook Vars** workflow.
+-  Click **Run workflow** to create all required variables in your Automation Account.
 
 The workflow automatically:
 
